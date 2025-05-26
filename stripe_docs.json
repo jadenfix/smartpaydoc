@@ -1,0 +1,32 @@
+[
+  {
+    "title": "Payment Intents",
+    "content": "\nPayment Intents represent your intent to collect payment from a customer, tracking charge attempts and payment state changes throughout the process.\n\nKey concepts:\n- Create a PaymentIntent on your server\n- Collect payment method details on the client\n- Confirm the PaymentIntent to attempt payment\n- Handle authentication when required\n\nBasic usage:\n```python\nimport stripe\nstripe.api_key = \"sk_test_...\"\n\n# Create PaymentIntent\nintent = stripe.PaymentIntent.create(\n    amount=2000,  # $20.00\n    currency='usd',\n    metadata={'order_id': '123'}\n)\n```\n\nStates: requires_payment_method, requires_confirmation, requires_action, processing, requires_capture, canceled, succeeded\n                ",
+    "url": "https://stripe.com/docs/api/payment_intents",
+    "category": "payments"
+  },
+  {
+    "title": "Customers",
+    "content": "\nCustomer objects allow you to perform recurring charges and track payments that belong to the same customer.\n\nKey features:\n- Store customer information securely\n- Attach payment methods\n- Track payment history\n- Handle subscriptions\n\nBasic usage:\n```python\n# Create customer\ncustomer = stripe.Customer.create(\n    email='customer@example.com',\n    name='John Doe',\n    metadata={'user_id': '123'}\n)\n\n# Retrieve customer\ncustomer = stripe.Customer.retrieve('cus_...')\n```\n\nCommon fields: id, email, name, phone, address, metadata, created, subscriptions\n                ",
+    "url": "https://stripe.com/docs/api/customers",
+    "category": "customers"
+  },
+  {
+    "title": "Subscriptions",
+    "content": "\nSubscriptions allow you to charge customers on a recurring basis. A subscription ties a customer to a particular pricing plan.\n\nKey concepts:\n- Create pricing plans first\n- Subscribe customers to plans\n- Handle billing cycles and proration\n- Manage subscription lifecycle\n\nBasic usage:\n```python\n# Create subscription\nsubscription = stripe.Subscription.create(\n    customer='cus_...',\n    items=[{'price': 'price_...'}],\n    trial_period_days=7\n)\n```\n\nStatuses: incomplete, incomplete_expired, trialing, active, past_due, canceled, unpaid\n                ",
+    "url": "https://stripe.com/docs/api/subscriptions",
+    "category": "billing"
+  },
+  {
+    "title": "Webhooks",
+    "content": "\nWebhooks allow your application to receive real-time notifications when events happen in your Stripe account.\n\nKey concepts:\n- Configure webhook endpoints in Dashboard\n- Verify webhook signatures for security\n- Handle idempotency for reliability\n- Process events asynchronously\n\nBasic webhook handling:\n```python\nimport stripe\nfrom flask import Flask, request\n\napp = Flask(__name__)\nendpoint_secret = 'whsec_...'\n\n@app.route('/webhook', methods=['POST'])\ndef handle_webhook():\n    payload = request.get_data()\n    sig_header = request.headers.get('Stripe-Signature')\n    \n    try:\n        event = stripe.Webhook.construct_event(\n            payload, sig_header, endpoint_secret\n        )\n    except ValueError:\n        return 'Invalid payload', 400\n    except stripe.error.SignatureVerificationError:\n        return 'Invalid signature', 400\n    \n    # Handle the event\n    if event['type'] == 'payment_intent.succeeded':\n        payment_intent = event['data']['object']\n        print(f'Payment {payment_intent.id} succeeded!')\n    \n    return {'status': 'success'}\n```\n\nCommon events: payment_intent.succeeded, invoice.payment_failed, customer.subscription.updated\n                ",
+    "url": "https://stripe.com/docs/webhooks",
+    "category": "webhooks"
+  },
+  {
+    "title": "Error Handling",
+    "content": "\nStripe uses conventional HTTP response codes and provides detailed error information.\n\nCommon error types:\n- CardError: Card was declined\n- RateLimitError: Too many requests\n- InvalidRequestError: Invalid parameters\n- AuthenticationError: Invalid API key\n- APIConnectionError: Network issues\n- APIError: Stripe server error\n\nError handling example:\n```python\ntry:\n    charge = stripe.Charge.create(\n        amount=2000,\n        currency='usd',\n        source='tok_visa'\n    )\nexcept stripe.error.CardError as e:\n    # Card was declined\n    print(f'Card declined: {e.user_message}')\nexcept stripe.error.RateLimitError:\n    # Rate limit exceeded\n    print('Rate limit exceeded')\nexcept stripe.error.InvalidRequestError as e:\n    # Invalid parameters\n    print(f'Invalid request: {e.user_message}')\n```\n\nHTTP Status Codes: 200 (OK), 400 (Bad Request), 401 (Unauthorized), 402 (Request Failed), 403 (Forbidden), 404 (Not Found), 409 (Conflict), 429 (Too Many Requests), 500+ (Server Errors)\n                ",
+    "url": "https://stripe.com/docs/error-handling",
+    "category": "errors"
+  }
+]
