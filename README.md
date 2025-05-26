@@ -1,36 +1,76 @@
-🚀 SmartPayDoc: LLM-Powered Stripe Assistant
+SmartPayDoc: LLM-Powered Stripe Assistant
+
+ 
+
 An intelligent command-line assistant that helps developers integrate Stripe faster using AI-powered documentation retrieval, code generation, and error diagnosis.
 
-✨ Features
-🤔 Smart Q&A: Ask questions about Stripe API in natural language
-⚡ Code Generation: Generate boilerplate code for payments, subscriptions, and more
-🔍 Error Diagnosis: Analyze and fix Stripe errors with AI-powered solutions
-📡 Webhook Analysis: Understand and handle webhook payloads
-🛠️ Multi-Language Support: Python, JavaScript, and more
-🎯 Framework-Aware: Flask, FastAPI, Express, and other frameworks
-🚀 Quick Start
+⸻
+
+Table of Contents
+	•	Features
+	•	Quick Start
+	•	Installation
+	•	Setup
+	•	Basic Usage
+	•	Commands
+	•	ask
+	•	generate
+	•	debug
+	•	webhook
+	•	Examples
+	•	Ask Questions
+	•	Generate Code
+	•	Debug Errors
+	•	Core Components
+	•	Configuration
+	•	Environment Variables
+	•	Custom Templates
+	•	Development
+	•	Contributing
+	•	Roadmap
+	•	Use Cases
+	•	License
+	•	Acknowledgments
+	•	Support
+
+⸻
+
+Features
+	•	Smart Q&A: Ask questions about Stripe API in natural language
+	•	Code Generation: Generate boilerplate code for payments, subscriptions, and more
+	•	Error Diagnosis: Analyze and fix Stripe errors with AI-powered solutions
+	•	Webhook Analysis: Understand and handle webhook payloads
+	•	Multi-Language Support: Python, JavaScript, and more
+	•	Framework-Aware: Flask, FastAPI, Express, and other frameworks
+
+⸻
+
+Quick Start
+
 Installation
-bash
-# Clone the repository
+
+Clone the repository and install dependencies:
+
 git clone https://github.com/jadenfix/smartpaydoc.git
 cd smartpaydoc
-
-# Install dependencies
 pip install -r requirements.txt
+cp .env.template .env  # Edit .env with your API keys
 
-# Set up environment variables
-cp .env.template .env
-# Edit .env with your API keys
 Setup
-Get your OpenAI API key from OpenAI Platform
-Get your Stripe keys from Stripe Dashboard
-Configure environment variables in .env
-bash
-# Initialize SmartPayDoc
+	1.	Obtain your OpenAI API key from the OpenAI Platform.
+	2.	Obtain your Stripe keys from the Stripe Dashboard.
+	3.	Populate your .env file:
+
+OPENAI_API_KEY=sk-your-openai-key
+STRIPE_SECRET_KEY=sk-your-stripe-key
+
+	4.	Initialize SmartPayDoc:
+
 python main.py init
+
 Basic Usage
-bash
-# Ask questions about Stripe
+
+# Ask a question about Stripe
 python main.py ask "How do I create a customer with metadata?"
 
 # Generate code
@@ -41,20 +81,26 @@ python main.py debug "card_declined: Your card was declined"
 
 # Analyze webhooks
 python main.py webhook webhook_payload.json
-📚 Commands
-ask - Ask Questions
+
+
+⸻
+
+Commands
+
+ask
+
 Get answers to Stripe API questions with code examples.
 
-bash
 # Basic question
 smartpaydoc ask "How do I create a payment intent?"
 
 # Language-specific examples
 smartpaydoc ask "How to handle webhooks?" --lang javascript
-generate - Generate Code
+
+generate
+
 Create boilerplate code for common Stripe patterns.
 
-bash
 # Payment integration
 smartpaydoc generate "one-time payment" --lang python --framework flask
 
@@ -63,19 +109,21 @@ smartpaydoc generate "subscription with trial" --lang javascript --framework exp
 
 # Customer management
 smartpaydoc generate "create customer" --lang python --framework fastapi
-debug - Error Diagnosis
+
+debug
+
 Analyze and fix Stripe errors.
 
-bash
 # Analyze error message
 smartpaydoc debug "stripe.error.CardError: Your card was declined"
 
 # With additional context
 smartpaydoc debug "payment_intent creation failed" --context "Using React frontend"
-webhook - Webhook Analysis
+
+webhook
+
 Understand webhook payloads and implement handlers.
 
-bash
 # Analyze webhook payload
 smartpaydoc webhook '{"type": "payment_intent.succeeded", "data": {...}}'
 
@@ -84,42 +132,44 @@ smartpaydoc webhook webhook.json
 
 # With signature verification
 smartpaydoc webhook webhook.json --verify
-🛠️ Examples
+
+
+⸻
+
+Examples
+
 Ask Questions
-bash
+
 $ smartpaydoc ask "What's the difference between Charges and Payment Intents?"
 
 💡 SmartPayDoc Answer:
-Payment Intents are the modern way to handle payments in Stripe, while Charges 
-are the legacy approach. Here are the key differences:
 
-**Payment Intents (Recommended):**
-- Built for Strong Customer Authentication (SCA)
-- Handles complex payment flows automatically
-- Better error handling and retry logic
-- Supports authentication methods like 3D Secure
+Payment Intents are the modern way to handle payments in Stripe, while Charges are the legacy approach. Here are the key differences:
 
-**Charges (Legacy):**
-- Immediate charge attempt
-- Limited SCA support
-- Manual handling of authentication
-- Being phased out for new integrations
+Payment Intents (Recommended):
+	•	Built for Strong Customer Authentication (SCA)
+	•	Handles complex payment flows automatically
+	•	Better error handling and retry logic
+	•	Supports authentication methods like 3D Secure
 
-**Example Payment Intent:**
-```python
+Charges (Legacy):
+	•	Immediate charge attempt
+	•	Limited SCA support
+	•	Manual handling of authentication
+	•	Being phased out for new integrations
+
 intent = stripe.PaymentIntent.create(
     amount=2000,
     currency='usd',
     payment_method='pm_card_visa'
 )
 
-### Generate Code
+Generate Code
 
-```bash
 $ smartpaydoc generate "subscription checkout" --lang python --framework flask
 
 📝 Generated Python Code:
-```python
+
 from flask import Flask, request, jsonify
 import stripe
 import os
@@ -161,27 +211,24 @@ def create_subscription():
 if __name__ == '__main__':
     app.run(debug=True)
 
-### Debug Errors
+Debug Errors
 
-```
 $ smartpaydoc debug "Your card was declined"
 
 🛠️ Error Diagnosis & Solution:
 
-**Error Type:** CardError
-**Description:** The card was declined by the issuer
+Error Type: CardError
+Description: The card was declined by the issuer
 
-## Immediate Solutions
-- Ask customer to contact their bank
-- Try a different payment method  
-- Check if card has sufficient funds
-- Verify card details are correct
+Immediate Solutions:
+	•	Ask customer to contact their bank
+	•	Try a different payment method
+	•	Check if card has sufficient funds
+	•	Verify card details are correct
 
-## Prevention Strategy
-Implement retry logic with exponential backoff
+Prevention Strategy:
+	•	Implement retry logic with exponential backoff
 
-## Code Example
-```python
 try:
     payment_intent = stripe.PaymentIntent.create(
         amount=amount,
@@ -193,40 +240,44 @@ except stripe.error.CardError as e:
         # Handle declined card
         return {'error': 'Card declined', 'decline_code': e.decline_code}
 
-## 🏗️ Architecture
+
+⸻
+
+🏗️ Architecture
+
 smartpaydoc/
 ├── main.py              # CLI interface
 ├── rag_engine.py        # Document retrieval & embeddings
 ├── codegen.py           # Code generation engine
 ├── error_helper.py      # Error diagnosis & webhook analysis
 ├── requirements.txt     # Dependencies
-├── setup.py            # Package setup
-├── .env.template       # Environment variables template
-└── README.md           # Documentation
+├── setup.py             # Package setup
+├── .env.template        # Environment variables template
+└── README.md            # Documentation
 
 
-### Core Components
+⸻
 
-1. **RAG Engine** (`rag_engine.py`)
-   - Ingests Stripe documentation
-   - Generates embeddings for semantic search
-   - Retrieves relevant context for queries
+Core Components
+	1.	RAG Engine (rag_engine.py)
+	•	Ingests Stripe documentation
+	•	Generates embeddings for semantic search
+	•	Retrieves relevant context for queries
+	2.	Code Generator (codegen.py)
+	•	Template-based code generation
+	•	LLM-powered custom code creation
+	•	Multi-language and framework support
+	3.	Error Helper (error_helper.py)
+	•	Pattern matching for common errors
+	•	AI-powered error diagnosis
+	•	Webhook payload analysis
 
-2. **Code Generator** (`codegen.py`)
-   - Template-based code generation
-   - LLM-powered custom code creation
-   - Multi-language and framework support
+⸻
 
-3. **Error Helper** (`error_helper.py`)
-   - Pattern matching for common errors
-   - AI-powered error diagnosis
-   - Webhook payload analysis
+Configuration
 
-## 🔧 Configuration
+Environment Variables
 
-### Environment Variables
-
-```
 # Required
 OPENAI_API_KEY=your_openai_api_key
 STRIPE_SECRET_KEY=sk_test_your_stripe_key
@@ -235,53 +286,52 @@ STRIPE_SECRET_KEY=sk_test_your_stripe_key
 OPENAI_MODEL=gpt-4                    # Default: gpt-4
 EMBEDDING_MODEL=text-embedding-ada-002 # Default: text-embedding-ada-002
 CACHE_EMBEDDINGS=true                 # Default: true
+
 Custom Templates
+
 You can extend the code generator by adding custom templates:
 
-python
 # In codegen.py
 self.templates["python"]["django"] = {
     "payment_intent": "your_django_template_here"
 }
+
+
+⸻
+
 🚦 Development
-Running Tests
-bash
-# Install development dependencies
+
+Running Tests:
+
 pip install -r requirements-dev.txt
-
-# Run tests
 pytest tests/
-
-# Run with coverage
 pytest --cov=smartpaydoc tests/
-Contributing
-Fork the repository
-Create a feature branch (git checkout -b feature/amazing-feature)
-Commit your changes (git commit -m 'Add amazing feature')
-Push to the branch (git push origin feature/amazing-feature)
-Open a Pull Request
-📈 Roadmap
- VSCode Extension: Native IDE integration
- GitHub Action: Automated PR analysis for Stripe errors
- Multi-SDK Support: Add PayPal, Square, and other payment processors
- Interactive Mode: Chat-like interface for complex workflows
- Testing Integration: Generate test cases for Stripe integrations
- Documentation Generation: Auto-generate API documentation
-🎯 Use Cases
-For Development
-Onboarding: Help new developers learn Stripe faster
-Debugging: Quickly diagnose production issues
-Prototyping: Generate boilerplate code for MVPs
-Documentation: Interactive Stripe documentation
-📄 License
-This project is licensed under the MIT License - see the LICENSE file for details.
 
-🙏 Acknowledgments
-Stripe for excellent API documentation
-OpenAI for GPT-4 and embedding models
-Typer for the CLI framework
-Rich for beautiful terminal output
-🤝 Support
-📧 Email: jpfix@calpoly.edu
-🐛 Issues: GitHub Issues
-💬 Discussions: GitHub Discussions
+
+⸻
+
+Contributing
+	1.	Fork the repository
+	2.	Create a feature branch: git checkout -b feature/amazing-feature
+	3.	Commit your changes: git commit -m 'Add amazing feature'
+	4.	Push to the branch: git push origin feature/amazing-feature
+	5.	Open a Pull Request
+
+⸻
+
+Roadmap
+	•	VSCode Extension: Native IDE integration
+	•	GitHub Action: Automated PR analysis for Stripe errors
+	•	Multi-SDK Support: Add PayPal, Square, and other payment processors
+	•	Interactive Mode: Chat-like interface for complex workflows
+	•	Testing Integration: Generate test cases for Stripe integrations
+
+⸻
+
+Use Cases
+	•	Onboarding: Help new developers learn Stripe faster
+	•	Debugging: Quickly diagnose production issues
+	•	Prototyping: Generate boilerplate code for MVPs
+	•	Documentation: Interactive Stripe documentation
+
+⸻
