@@ -12,7 +12,7 @@ An intelligent command-line assistant that helps developers integrate Stripe fas
 Installation
 bash
 # Clone the repository
-git clone https://github.com/yourusername/smartpaydoc.git
+git clone https://github.com/jadenfix/smartpaydoc.git
 cd smartpaydoc
 
 # Install dependencies
