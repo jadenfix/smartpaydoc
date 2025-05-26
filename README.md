@@ -163,7 +163,7 @@ if __name__ == '__main__':
 
 ### Debug Errors
 
-```bash
+```
 $ smartpaydoc debug "Your card was declined"
 
 🛠️ Error Diagnosis & Solution:
@@ -226,7 +226,7 @@ smartpaydoc/
 
 ### Environment Variables
 
-```bash
+```
 # Required
 OPENAI_API_KEY=your_openai_api_key
 STRIPE_SECRET_KEY=sk_test_your_stripe_key
@@ -268,15 +268,6 @@ Open a Pull Request
  Testing Integration: Generate test cases for Stripe integrations
  Documentation Generation: Auto-generate API documentation
 🎯 Use Cases
-For Interviews
-Stripe Interview:
-
-"I built SmartPayDoc to solve a real problem I faced - debugging webhook signature verification failures. It demonstrates deep Stripe knowledge and practical developer experience."
-
-Windsurf Interview:
-
-"This shows my ability to build LLM-native developer tools with proper RAG implementation, prompt engineering, and developer-first UX design."
-
 For Development
 Onboarding: Help new developers learn Stripe faster
 Debugging: Quickly diagnose production issues
@@ -291,6 +282,6 @@ OpenAI for GPT-4 and embedding models
 Typer for the CLI framework
 Rich for beautiful terminal output
 🤝 Support
-📧 Email: support@smartpaydoc.com
+📧 Email: jpfix@calpoly.edu
 🐛 Issues: GitHub Issues
 💬 Discussions: GitHub Discussions
