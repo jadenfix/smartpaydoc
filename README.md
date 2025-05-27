@@ -1,121 +1,73 @@
-# 🚀 SmartPayDoc: AI-Powered Stripe Assistant
+# SmartPayDoc: AI-Powered Stripe Assistant
 
-SmartPayDoc is an intelligent assistant that helps developers integrate Stripe faster using AI-powered documentation retrieval and code generation. It features both a web interface and command-line tools.
+SmartPayDoc is an AI-powered assistant that helps developers integrate Stripe faster using natural language processing and code generation.
 
-## ✨ Features
+## 🛠️ Tech Stack
 
-- **🤔 Smart Q&A**: Ask questions about Stripe API in natural language
-- **⚡ Code Generation**: Generate boilerplate code for payments, subscriptions, and more
-- **🌐 Web Interface**: Modern, responsive web UI for easy interaction
-- **🔍 Context-Aware**: Uses RAG (Retrieval-Augmented Generation) for accurate, up-to-date responses
-- **🛠️ Multi-Language Support**: Python, JavaScript, and more
-- **🎯 Framework-Aware**: Flask, FastAPI, Express, and other frameworks
+- **Backend**: Python 3.8+, FastAPI
+- **Frontend**: HTML, JavaScript, Tailwind CSS
+- **AI**: Anthropic's Claude API
+- **Vector Database**: FAISS
+- **Deployment**: Vercel
 
-## 🚀 Quick Start
+## 🚀 Deployment
 
 ### Prerequisites
 
 - Python 3.8+
-- Node.js 14+ (for development)
 - Stripe API key
-- Anthropic API key (for AI capabilities)
+- Anthropic API key
 
-### Installation
+### Setup
 
-1. **Clone the repository**
+1. Clone the repository:
    ```bash
    git clone https://github.com/jadenfix/smartpaydoc.git
    cd smartpaydoc
    ```
 
-2. **Install Python dependencies**
+2. Install dependencies:
    ```bash
    pip install -r requirements.txt
    ```
 
-3. **Set up environment variables**
+3. Configure environment variables by creating a `.env` file:
    ```bash
    cp .env.template .env
    # Edit .env with your API keys
    ```
 
-4. **Set up the web interface**
-   ```bash
-   cd web
-   python main.py
-   ```
+### Environment Variables
 
-5. **Access the web interface**
-   Open your browser and navigate to `http://localhost:8000`
+```
+ANTHROPIC_API_KEY=your_anthropic_api_key
+STRIPE_API_KEY=your_stripe_secret_key
+```
 
-## 🌐 Web Interface
-
-The web interface provides an easy way to interact with SmartPayDoc:
-
-- **Ask Questions**: Get answers about the Stripe API
-- **Generate Code**: Create code snippets in various languages and frameworks
-- **Interactive Examples**: Test and modify generated code
-
-## 🚀 Deployment
-
-### Vercel (Recommended)
+### Deploy to Vercel
 
 1. Push your code to a GitHub repository
-2. Connect the repository to Vercel
-3. Set up the following environment variables in Vercel:
-   - `ANTHROPIC_API_KEY`: Your Anthropic API key
-   - `STRIPE_API_KEY`: Your Stripe secret key
-   - `PYTHON_VERSION`: 3.8 (or your preferred version)
+2. Import the repository to Vercel
+3. Add the required environment variables in Vercel's project settings
+4. Deploy!
 
-## 🛠️ Development
-
-### Project Structure
+## 📦 Project Structure
 
 ```
 smartpaydoc/
 ├── web/                  # Web application
-│   ├── main.py           # FastAPI application
-│   ├── requirements.txt  # Python dependencies
-│   ├── static/           # Static files (JS, CSS)
+│   ├── main.py           # FastAPI app
+│   ├── requirements.txt  # Dependencies
+│   ├── static/           # Static assets
 │   └── templates/        # HTML templates
-├── rag_engine.py         # RAG engine for document retrieval
-├── codegen.py            # Code generation logic
-├── requirements.txt      # Main dependencies
-└── vercel.json           # Vercel configuration
+├── rag_engine.py         # Document retrieval
+├── codegen.py            # Code generation
+└── requirements.txt      # Main dependencies
 ```
 
-### Running Locally
+## 📄 License
 
-1. **Start the development server**
-   ```bash
-   cd web
-   uvicorn main:app --reload
-   ```
-
-2. **Access the application**
-   - Web interface: http://localhost:8000
-   - API documentation: http://localhost:8000/docs
-
-## 🤝 Contributing
-
-Contributions are welcome! Please follow these steps:
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
-
-## 📝 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🙏 Acknowledgments
-
-- [Stripe](https://stripe.com/) for their excellent API and documentation
-- [Anthropic](https://www.anthropic.com/) for their powerful AI models
-- [FastAPI](https://fastapi.tiangolo.com/) for the web framework
-- [Tailwind CSS](https://tailwindcss.com/) for styling
+MIT
 
 ⸻
 
