@@ -249,6 +249,35 @@ app.listen(PORT, () => {
             return code.strip()
         return code_block.strip()
     
+    async def _generate_from_scratch(self, task: str, language: str = "python", framework: str = "flask") -> str:
+        """Generate code from scratch using the LLM"""
+        prompt = f"""You are a Stripe integration expert. Generate {language} code for the following task using the {framework} framework.
+
+Task: {task}
+
+Please generate clean, secure, and well-documented code that follows best practices for Stripe integration. Include all necessary imports and setup code.
+
+Return only the code block without any additional explanation or markdown formatting."""
+        
+        try:
+            # Use the Anthropic client to generate code
+            response = await self.client.messages.create(
+                model=self.model,
+                max_tokens=4000,
+                temperature=0.3,
+                messages=[
+                    {"role": "user", "content": prompt}
+                ]
+            )
+            
+            # Extract the code from the response
+            generated_code = response.content[0].text
+            return self._extract_code_from_markdown(generated_code) or generated_code
+            
+        except Exception as e:
+            logger.error(f"Error generating code from scratch: {e}")
+            raise Exception(f"Failed to generate code: {e}")
+    
     async def _enhance_template(self, base_code: str, task: str, language: str, framework: str) -> str:
         """Enhance a base template based on specific requirements"""
         prompt = f"""You are a Stripe integration expert. Enhance this {language} {framework} code template based on the user's specific requirements.
@@ -266,7 +295,7 @@ Please enhance this code to better fit the task while maintaining security and b
         try:
             # Use the Anthropic client to generate enhanced code
             response = await self.client.messages.create(
-                model="claude-3-opus-20240229",
+                model=self.model,
                 max_tokens=2000,
                 temperature=0.3,
                 messages=[

@@ -12,14 +12,15 @@ BASE_DIR = Path(__file__).parent
 
 app = FastAPI()
 
-# Serve static files
-app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
-
 # Configure templates
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
 # Create static directory if it doesn't exist
 os.makedirs(BASE_DIR / "static", exist_ok=True)
+
+# Mount static files
+app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
+templates.env.globals['url_for'] = lambda name, **params: f"/static/{params['filename']}" if name == 'static' else app.url_path_for(name, **params)
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
@@ -75,18 +76,37 @@ def format_response(response_text: str) -> str:
     # If no code blocks, return the cleaned text
     return cleaned_text
 
+from rag_engine import StripeRAGEngine
+import os
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
+
+# Initialize RAG
+rag = None
+
+# Initialize RAG engine on startup
+@app.on_event("startup")
+async def startup_event():
+    global rag
+    rag = StripeRAGEngine()
+    await rag.initialize()
+    print("✅ RAG engine initialized")
+
 @app.post("/api/ask")
 async def ask_question(question: str = Form(...)):
     try:
+        if not rag:
+            return {"error": "RAG engine not initialized. Please try again in a moment."}
+            
         print(f"Received question: {question}")
-        result = subprocess.run(
-            ["smartpaydoc", "ask", question],
-            capture_output=True,
-            text=True
-        )
+        
+        # Get response from RAG
+        response = await rag.ask(question)
         
         # Format the response
-        formatted_response = format_response(result.stdout or result.stderr or "No output from command")
+        formatted_response = format_response(response)
         
         print(f"Formatted response: {formatted_response[:200]}...")
         return {"response": formatted_response}
@@ -134,22 +154,25 @@ def clean_code_output(code_text: str) -> str:
 @app.post("/api/generate")
 async def generate_code(prompt: str = Form(...), language: str = Form("python"), framework: str = Form("flask")):
     try:
-        print(f"Generating code for: {prompt}")
+        print(f"Generating code for: {prompt} (Language: {language}, Framework: {framework})")
         
-        result = subprocess.run(
-            ["smartpaydoc", "generate", prompt, "--lang", language, "--framework", framework],
-            capture_output=True,
-            text=True
+        # Import the StripeCodeGenerator
+        from codegen import StripeCodeGenerator
+        
+        # Initialize the code generator
+        code_generator = StripeCodeGenerator()
+        
+        # Generate the code
+        code = await code_generator.generate_code(
+            prompt=prompt,
+            language=language,
+            framework=framework
         )
         
-        if result.stderr and not result.stdout:
-            return {"error": f"Error generating code: {result.stderr}"}
-        
         # Clean up the generated code
-        cleaned_code = clean_code_output(result.stdout)
+        cleaned_code = clean_code_output(code)
         
-        # Return just the cleaned code without additional formatting
-        # The frontend will handle the markdown formatting
+        # Return the cleaned code
         return {"code": cleaned_code}
     except Exception as e:
         error_msg = f"Error generating code: {str(e)}"

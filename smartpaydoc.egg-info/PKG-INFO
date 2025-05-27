@@ -5,6 +5,8 @@ Summary: LLM-Powered Developer Assistant for Stripe Integrations
 Home-page: https://github.com/yourusername/smartpaydoc
 Author: Your Name
 Author-email: your.email@example.com
+License: UNKNOWN
+Platform: UNKNOWN
 Classifier: Development Status :: 3 - Alpha
 Classifier: Intended Audience :: Developers
 Classifier: License :: OSI Approved :: MIT License
@@ -573,3 +575,5 @@ Use Cases
 
 ⸻
 >>>>>>> origin/main
+
+
