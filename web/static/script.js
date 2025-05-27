@@ -1,0 +1,205 @@
+// DOM Elements
+const askForm = document.getElementById('askForm');
+const generateForm = document.getElementById('generateForm');
+const askResult = document.getElementById('askResult');
+const codeOutput = document.getElementById('codeOutput');
+
+// Initialize clipboard.js for code copy functionality
+new ClipboardJS('.copy-btn');
+
+// Handle ask form submission
+if (askForm) {
+    askForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const question = document.getElementById('question').value.trim();
+        if (!question) return;
+        
+        const submitBtn = askForm.querySelector('button[type="submit"]');
+        const btnText = submitBtn.querySelector('.btn-text');
+        const spinner = submitBtn.querySelector('.loading-spinner');
+        
+        // Show loading state
+        btnText.textContent = 'Asking...';
+        spinner.style.display = 'inline-block';
+        submitBtn.disabled = true;
+        
+        // Clear previous results/errors
+        askResult.style.display = 'none';
+        const errorElement = document.getElementById('askError');
+        if (errorElement) errorElement.remove();
+        
+        try {
+            const response = await fetch('/api/ask', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: new URLSearchParams({ question })
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Error: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            
+            // Display the response
+            askResult.innerHTML = data.response;
+            askResult.style.display = 'block';
+            
+            // Apply syntax highlighting to code blocks
+            document.querySelectorAll('pre code').forEach((block) => {
+                hljs.highlightBlock(block);
+            });
+            
+        } catch (error) {
+            console.error('Error:', error);
+            showError(askForm, 'Failed to get a response. Please try again.');
+        } finally {
+            // Reset button state
+            btnText.textContent = 'Ask Question';
+            spinner.style.display = 'none';
+            submitBtn.disabled = false;
+        }
+    });
+}
+
+// Handle generate form submission
+if (generateForm) {
+    generateForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const prompt = document.getElementById('prompt').value.trim();
+        const language = document.getElementById('language').value;
+        const framework = document.getElementById('framework').value;
+        
+        if (!prompt) return;
+        
+        const submitBtn = generateForm.querySelector('button[type="submit"]');
+        const btnText = submitBtn.querySelector('.btn-text');
+        const spinner = submitBtn.querySelector('.loading-spinner');
+        
+        // Show loading state
+        btnText.textContent = 'Generating...';
+        spinner.style.display = 'inline-block';
+        submitBtn.disabled = true;
+        
+        // Clear previous results/errors
+        const generateResult = document.getElementById('generateResult');
+        generateResult.style.display = 'none';
+        const errorElement = document.getElementById('generateError');
+        if (errorElement) errorElement.remove();
+        
+        try {
+            const response = await fetch('/api/generate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: new URLSearchParams({ 
+                    prompt,
+                    language,
+                    framework 
+                })
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Error: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            
+            // Display the generated code
+            const codeBlock = createCodeBlock(data.code, language);
+            codeOutput.innerHTML = '';
+            codeOutput.appendChild(codeBlock);
+            generateResult.style.display = 'block';
+            
+            // Scroll to the result
+            generateResult.scrollIntoView({ behavior: 'smooth' });
+            
+        } catch (error) {
+            console.error('Error:', error);
+            showError(generateForm, 'Failed to generate code. Please try again.');
+        } finally {
+            // Reset button state
+            btnText.textContent = 'Generate Code';
+            spinner.style.display = 'none';
+            submitBtn.disabled = false;
+        }
+    });
+}
+
+// Helper function to create a code block with copy button
+function createCodeBlock(code, language) {
+    const container = document.createElement('div');
+    container.className = 'code-block';
+    
+    const header = document.createElement('div');
+    header.className = 'code-header';
+    
+    const langSpan = document.createElement('span');
+    langSpan.className = 'code-language';
+    langSpan.textContent = language || 'code';
+    
+    const copyBtn = document.createElement('button');
+    copyBtn.className = 'copy-btn';
+    copyBtn.setAttribute('data-clipboard-text', code);
+    copyBtn.innerHTML = `
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+        </svg>
+        Copy
+    `;
+    
+    header.appendChild(langSpan);
+    header.appendChild(copyBtn);
+    
+    const pre = document.createElement('pre');
+    const codeElement = document.createElement('code');
+    codeElement.className = language ? `language-${language}` : '';
+    codeElement.textContent = code;
+    
+    pre.appendChild(codeElement);
+    container.appendChild(header);
+    container.appendChild(pre);
+    
+    // Apply syntax highlighting
+    hljs.highlightBlock(codeElement);
+    
+    // Add copy feedback
+    copyBtn.addEventListener('click', () => {
+        const originalText = copyBtn.innerHTML;
+        copyBtn.innerHTML = `
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+            </svg>
+            Copied!
+        `;
+        setTimeout(() => {
+            copyBtn.innerHTML = originalText;
+        }, 2000);
+    });
+    
+    return container;
+}
+
+// Helper function to show error messages
+function showError(formElement, message) {
+    const errorDiv = document.createElement('div');
+    errorDiv.id = `${formElement.id}Error`;
+    errorDiv.className = 'error-message';
+    errorDiv.innerHTML = `
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <span class="error-text">${message}</span>
+    `;
+    
+    formElement.parentNode.insertBefore(errorDiv, formElement.nextSibling);
+    errorDiv.scrollIntoView({ behavior: 'smooth' });
+}
+
+// Initialize clipboard.js
+new ClipboardJS('.copy-btn');

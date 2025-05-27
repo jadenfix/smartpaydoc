@@ -1,0 +1,14 @@
+{
+  "name": "smartpaydoc",
+  "version": "1.0.0",
+  "description": "SmartPayDoc - Stripe API Documentation Assistant",
+  "scripts": {
+    "build": "echo 'Build script runs during deployment'"
+  },
+  "dependencies": {
+    "@netlify/functions": "^1.0.0"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}
