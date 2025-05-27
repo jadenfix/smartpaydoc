@@ -236,8 +236,54 @@
     </div>
 
     <script>
-        // Configure marked.js
-        marked.setOptions({
+        // Configuration
+        const CONFIG = {
+            apiEndpoints: {
+                ask: '/api/ask',
+                generate: '/api/generate'
+            },
+            defaultError: 'An unexpected error occurred. Please try again.'
+        };
+
+        // Wait for the DOM to be fully loaded
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOM fully loaded, initializing...');
+            
+            try {
+                // Initialize the application
+                initializeApp();
+            } catch (error) {
+                console.error('Error initializing application:', error);
+                showGlobalError('Failed to initialize the application. Please refresh the page.');
+            }
+        });
+        
+        /**
+         * Show a global error message
+         * @param {string} message - The error message to display
+         */
+        function showGlobalError(message) {
+            const errorContainer = document.createElement('div');
+            errorContainer.className = 'fixed top-4 right-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded';
+            errorContainer.role = 'alert';
+            errorContainer.innerHTML = `
+                <strong class="font-bold">Error: </strong>
+                <span class="block sm:inline">${message}</span>
+            `;
+            document.body.appendChild(errorContainer);
+            
+            // Remove the error after 10 seconds
+            setTimeout(() => {
+                errorContainer.remove();
+            }, 10000);
+        }
+
+        /**
+         * Initialize the application
+         */
+        function initializeApp() {
+            // Configure marked.js
+            marked.setOptions({
             highlight: function(code, lang) {
                 if (lang && hljs.getLanguage(lang)) {
                     return hljs.highlight(lang, code).value;
@@ -325,142 +371,206 @@
             return temp.innerHTML;
         }
 
-        document.addEventListener('DOMContentLoaded', function() {
-            // Handle ask form submission
-            document.getElementById('askForm').addEventListener('submit', async (e) => {
+        /**
+         * Handle ask form submission
+         */
+        function setupAskForm() {
+            const form = document.getElementById('askForm');
+            if (!form) {
+                console.error('Ask form not found');
+                return;
+            }
+
+            form.addEventListener('submit', async (e) => {
                 e.preventDefault();
-                const question = document.getElementById('question').value.trim();
+                
+                const question = document.getElementById('question')?.value.trim();
                 const answerDiv = document.getElementById('answer');
                 const answerContent = document.getElementById('answerContent');
                 const submitBtn = e.target.querySelector('button[type="submit"]');
-                const btnText = submitBtn.querySelector('.btn-text');
-                const spinner = submitBtn.querySelector('.loading-spinner');
+                const btnText = submitBtn?.querySelector('.btn-text');
+                const spinner = submitBtn?.querySelector('.loading-spinner');
                 
-                if (!question) return;
+                if (!question) {
+                    showGlobalError('Please enter a question');
+                    return;
+                }
                 
                 // Show loading state
-                btnText.textContent = 'Asking...';
-                spinner.style.display = 'inline-block';
-                submitBtn.disabled = true;
+                if (btnText) btnText.textContent = 'Asking...';
+                if (spinner) spinner.style.display = 'inline-block';
+                if (submitBtn) submitBtn.disabled = true;
                 
                 try {
-                    const response = await fetch('/api/ask', {
+                    const response = await fetch(CONFIG.apiEndpoints.ask, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/x-www-form-urlencoded',
                         },
-                        body: new URLSearchParams({
-                            'question': question
-                        })
+                        body: new URLSearchParams({ question })
                     });
-                    
-                    if (!response.ok) {
-                        throw new Error(`HTTP error! status: ${response.status}`);
-                    }
                     
                     const data = await response.json();
                     
-                    // Render the markdown response
-                    answerContent.innerHTML = renderMarkdown(data.answer);
-                    answerDiv.style.display = 'block';
+                    if (!response.ok) {
+                        throw new Error(data.error || `HTTP error! status: ${response.status}`);
+                    }
                     
-                    // Scroll to the answer
-                    answerDiv.scrollIntoView({ behavior: 'smooth' });
+                    // Render the markdown response
+                    if (answerContent) {
+                        answerContent.innerHTML = renderMarkdown(data.response || 'No response received');
+                    }
+                    
+                    if (answerDiv) {
+                        answerDiv.style.display = 'block';
+                        answerDiv.scrollIntoView({ behavior: 'smooth' });
+                    }
                     
                 } catch (error) {
-                    console.error('Error:', error);
-                    answerContent.innerHTML = `
-                        <div class="error-message">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                            </svg>
-                            <span class="error-text">Error: ${error.message}</span>
-                        </div>
-                    `;
-                    answerDiv.style.display = 'block';
+                    console.error('Error asking question:', error);
+                    showGlobalError(error.message || CONFIG.defaultError);
+                    
+                    if (answerContent) {
+                        answerContent.innerHTML = `
+                            <div class="error-message">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                </svg>
+                                <span class="error-text">Error: ${error.message || CONFIG.defaultError}</span>
+                            </div>
+                        `;
+                        answerDiv.style.display = 'block';
+                    }
                 } finally {
                     // Reset button state
-                    btnText.textContent = 'Ask Question';
-                    spinner.style.display = 'none';
-                    submitBtn.disabled = false;
+                    if (btnText) btnText.textContent = 'Ask Question';
+                    if (spinner) spinner.style.display = 'none';
+                    if (submitBtn) submitBtn.disabled = false;
                 }
             });
+        }
 
-            // Handle generate form submission
-            document.getElementById('generateForm').addEventListener('submit', async (e) => {
+        /**
+         * Handle generate form submission
+         */
+        function setupGenerateForm() {
+            const form = document.getElementById('generateForm');
+            if (!form) {
+                console.error('Generate form not found');
+                return;
+            }
+
+            form.addEventListener('submit', async (e) => {
                 e.preventDefault();
-                const prompt = document.getElementById('prompt').value.trim();
-                const language = document.getElementById('language').value;
-                const framework = document.getElementById('framework').value;
+                
+                const prompt = document.getElementById('prompt')?.value.trim();
+                const language = document.getElementById('language')?.value || 'python';
+                const framework = document.getElementById('framework')?.value || 'none';
                 const codeOutput = document.getElementById('codeOutput');
                 const generateResult = document.getElementById('generateResult');
                 const submitBtn = e.target.querySelector('button[type="submit"]');
-                const btnText = submitBtn.querySelector('.btn-text');
-                const spinner = submitBtn.querySelector('.loading-spinner');
+                const btnText = submitBtn?.querySelector('.btn-text');
+                const spinner = submitBtn?.querySelector('.loading-spinner');
                 
-                if (!prompt) return;
+                if (!prompt) {
+                    showGlobalError('Please enter a prompt');
+                    return;
+                }
                 
                 // Show loading state
-                btnText.textContent = 'Generating...';
-                spinner.style.display = 'inline-block';
-                submitBtn.disabled = true;
+                if (btnText) btnText.textContent = 'Generating...';
+                if (spinner) spinner.style.display = 'inline-block';
+                if (submitBtn) submitBtn.disabled = true;
                 
                 try {
-                    const response = await fetch('/api/generate', {
+                    const response = await fetch(CONFIG.apiEndpoints.generate, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/x-www-form-urlencoded',
                         },
                         body: new URLSearchParams({
-                            'prompt': prompt,
-                            'language': language,
-                            'framework': framework
+                            prompt,
+                            language,
+                            framework
                         })
                     });
                     
-                    if (!response.ok) {
-                        throw new Error(`HTTP error! status: ${response.status}`);
-                    }
-                    
                     const data = await response.json();
                     
-                    // Render the code with syntax highlighting
-                    codeOutput.innerHTML = renderMarkdown(`\`\`\`${language}\n${data.code}\n\`\`\``);
-                    generateResult.style.display = 'block';
+                    if (!response.ok) {
+                        throw new Error(data.error || `HTTP error! status: ${response.status}`);
+                    }
                     
-                    // Scroll to the result
-                    generateResult.scrollIntoView({ behavior: 'smooth' });
+                    // Display the generated code with syntax highlighting
+                    if (data.code) {
+                        codeOutput.innerHTML = renderMarkdown('```' + language + '\n' + data.code + '\n```');
+                        generateResult.style.display = 'block';
+                        
+                        // Highlight the code
+                        document.querySelectorAll('pre code').forEach((block) => {
+                            hljs.highlightElement(block);
+                        });
+                    } else {
+                        throw new Error('No code was generated');
+                    }
                     
                 } catch (error) {
-                    console.error('Error:', error);
-                    codeOutput.innerHTML = `
-                        <div class="error-message">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                            </svg>
-                            <span class="error-text">Error: ${error.message}</span>
-                        </div>
-                    `;
-                    generateResult.style.display = 'block';
+                    console.error('Error generating code:', error);
+                    showGlobalError(error.message || CONFIG.defaultError);
+                    
+                    if (codeOutput) {
+                        codeOutput.innerHTML = `
+                            <div class="error-message">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                </svg>
+                                <span class="error-text">Error: ${error.message || CONFIG.defaultError}</span>
+                            </div>
+                        `;
+                        generateResult.style.display = 'block';
+                    }
                 } finally {
                     // Reset button state
-                    btnText.textContent = 'Generate Code';
-                    spinner.style.display = 'none';
-                    submitBtn.disabled = false;
+                    if (btnText) btnText.textContent = 'Generate Code';
+                    if (spinner) spinner.style.display = 'none';
+                    if (submitBtn) submitBtn.disabled = false;
                 }
             });
+        }
 
-            // Initialize copy button
-            document.getElementById('copyButton').addEventListener('click', function() {
-                const button = this;
-                const originalText = button.textContent;
-                button.textContent = 'Copied!';
-                setTimeout(() => {
-                    button.textContent = originalText;
-                }, 2000);
+            // Set up the forms
+            setupAskForm();
+            setupGenerateForm();
+            
+            // Initialize copy buttons
+            document.querySelectorAll('.copy-btn').forEach(button => {
+                button.addEventListener('click', function() {
+                    const codeBlock = this.closest('.code-block');
+                    const code = codeBlock ? codeBlock.querySelector('code')?.textContent : '';
+                    
+                    if (code) {
+                        navigator.clipboard.writeText(code).then(() => {
+                            const originalText = this.innerHTML;
+                            this.innerHTML = `
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                                </svg>
+                                Copied!
+                            `;
+                            
+                            setTimeout(() => {
+                                this.innerHTML = originalText;
+                            }, 2000);
+                        }).catch(err => {
+                            console.error('Failed to copy code: ', err);
+                            showGlobalError('Failed to copy code to clipboard');
+                        });
+                    }
+                });
             });
-        });
+            
+            console.log('Application initialized successfully');
+        } // End of initializeApp
     </script>
-    <script src="/static/script.js" defer></script>
 </body>
 </html>

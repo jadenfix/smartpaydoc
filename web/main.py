@@ -90,29 +90,51 @@ rag = None
 @app.on_event("startup")
 async def startup_event():
     global rag
-    rag = StripeRAGEngine()
-    await rag.initialize()
-    print("✅ RAG engine initialized")
+    try:
+        print("[DEBUG] Initializing RAG engine...")
+        rag = StripeRAGEngine()
+        print("[DEBUG] RAG engine instance created, initializing...")
+        await rag.initialize()
+        print("✅ RAG engine initialized successfully")
+        print(f"[DEBUG] RAG engine has {len(rag.documents)} documents loaded")
+    except Exception as e:
+        print(f"❌ Failed to initialize RAG engine: {e}")
+        import traceback
+        traceback.print_exc()
+        rag = None
 
 @app.post("/api/ask")
 async def ask_question(question: str = Form(...)):
     try:
         if not rag:
-            return {"error": "RAG engine not initialized. Please try again in a moment."}
+            error_msg = "RAG engine not initialized. Please try again in a moment."
+            print(f"[ERROR] {error_msg}")
+            return {"error": error_msg}
             
-        print(f"Received question: {question}")
+        print(f"[DEBUG] Received question: {question}")
         
         # Get response from RAG
+        print("[DEBUG] Calling rag.ask()...")
         response = await rag.ask(question)
+        print(f"[DEBUG] Got response from rag.ask(): {response[:200] if response else 'None'}")
+        
+        if not response:
+            error_msg = "Received empty response from RAG engine"
+            print(f"[ERROR] {error_msg}")
+            return {"error": error_msg}
         
         # Format the response
+        print("[DEBUG] Formatting response...")
         formatted_response = format_response(response)
+        print(f"[DEBUG] Formatted response: {formatted_response[:200]}...")
         
-        print(f"Formatted response: {formatted_response[:200]}...")
         return {"response": formatted_response}
+        
     except Exception as e:
+        import traceback
         error_msg = f"Error processing your question: {str(e)}"
-        print(error_msg)
+        print(f"[ERROR] {error_msg}")
+        print(f"[DEBUG] Traceback: {traceback.format_exc()}")
         return {"error": error_msg}
 
 def clean_code_output(code_text: str) -> str:
@@ -153,28 +175,40 @@ def clean_code_output(code_text: str) -> str:
 
 @app.post("/api/generate")
 async def generate_code(prompt: str = Form(...), language: str = Form("python"), framework: str = Form("flask")):
+    print("\n[DEBUG] ====== Starting code generation ======")
+    print(f"[DEBUG] Prompt: {prompt}")
+    print(f"[DEBUG] Language: {language}")
+    print(f"[DEBUG] Framework: {framework}")
+    
     try:
-        print(f"Generating code for: {prompt} (Language: {language}, Framework: {framework})")
-        
-        # Import the StripeCodeGenerator
+        print("[DEBUG] Importing StripeCodeGenerator...")
         from codegen import StripeCodeGenerator
         
-        # Initialize the code generator
+        print("[DEBUG] Initializing code generator...")
         code_generator = StripeCodeGenerator()
         
-        # Generate the code
+        print("[DEBUG] Generating code...")
         code = await code_generator.generate_code(
-            prompt=prompt,
+            task=prompt,  # Changed from prompt=prompt to task=prompt
             language=language,
             framework=framework
         )
+        print(f"[DEBUG] Raw generated code: {code[:200]}..." if code else "[DEBUG] No code generated")
         
         # Clean up the generated code
-        cleaned_code = clean_code_output(code)
+        cleaned_code = clean_code_output(code or "")
+        print(f"[DEBUG] Cleaned code: {cleaned_code[:200]}..." if cleaned_code else "[DEBUG] No cleaned code")
         
-        # Return the cleaned code
+        if not cleaned_code:
+            raise ValueError("No code was generated")
+            
         return {"code": cleaned_code}
+        
     except Exception as e:
+        import traceback
         error_msg = f"Error generating code: {str(e)}"
-        print(error_msg)
+        print(f"[ERROR] {error_msg}")
+        print(f"[DEBUG] Traceback: {traceback.format_exc()}")
         return {"error": error_msg}
+    finally:
+        print("[DEBUG] ====== End of code generation ======\n")

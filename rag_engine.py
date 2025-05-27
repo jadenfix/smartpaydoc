@@ -318,7 +318,7 @@ HTTP Status Codes: 200 (OK), 400 (Bad Request), 401 (Unauthorized), 402 (Request
                 doc.embedding = embeddings_data['embeddings'][i]
             self.documents.append(doc)
 
-    async def query(self, question: str, language: str = "python") -> str:
+    async def ask(self, question: str, language: str = "python") -> str:
         """Query the RAG system with a question using Anthropic"""
         print(f"\n[DEBUG] Starting query for: {question}")
         print(f"[DEBUG] Number of documents: {len(self.documents)}")
@@ -379,13 +379,22 @@ HTTP Status Codes: 200 (OK), 400 (Bad Request), 401 (Unauthorized), 402 (Request
                 ]
             )
             print("[DEBUG] Received response from Anthropic")
-            return response.content[0].text
+            
+            # Ensure we have a response and return it
+            if response and hasattr(response, 'content') and response.content:
+                return response.content[0].text
+            else:
+                return "I'm sorry, I couldn't generate a response. Please try again."
+                
         except Exception as e:
             print(f"❌ Error generating response: {e}", file=sys.stderr)
             print(f"[DEBUG] Error details: {type(e).__name__}: {str(e)}", file=sys.stderr)
             import traceback
             traceback.print_exc()
             return f"I'm sorry, I encountered an error while generating a response: {str(e)}"
+            
+    # Alias for backward compatibility
+    query = ask
 
     def _find_relevant_docs(self, query_embedding: np.ndarray, top_k: int = 3) -> List[StripeDocument]:
         """Find the most relevant documents using cosine similarity"""
