@@ -1,82 +1,121 @@
-<<<<<<< HEAD
-🚀 SmartPayDoc: LLM-Powered Stripe Assistant
-An intelligent command-line assistant that helps developers integrate Stripe faster using AI-powered documentation retrieval, code generation, and error diagnosis.
+# 🚀 SmartPayDoc: AI-Powered Stripe Assistant
 
-✨ Features
-🤔 Smart Q&A: Ask questions about Stripe API in natural language
-⚡ Code Generation: Generate boilerplate code for payments, subscriptions, and more
-🔍 Error Diagnosis: Analyze and fix Stripe errors with AI-powered solutions
-📡 Webhook Analysis: Understand and handle webhook payloads
-🛠️ Multi-Language Support: Python, JavaScript, and more
-🎯 Framework-Aware: Flask, FastAPI, Express, and other frameworks
-🚀 Quick Start
-Installation
-bash
-# Clone the repository
-git clone https://github.com/yourusername/smartpaydoc.git
-cd smartpaydoc
+SmartPayDoc is an intelligent assistant that helps developers integrate Stripe faster using AI-powered documentation retrieval and code generation. It features both a web interface and command-line tools.
 
-# Install dependencies
-pip install -r requirements.txt
+## ✨ Features
 
-# Set up environment variables
-cp .env.template .env
-# Edit .env with your API keys
-Setup
-Get your OpenAI API key from OpenAI Platform
-Get your Stripe keys from Stripe Dashboard
-Configure environment variables in .env
-bash
-# Initialize SmartPayDoc
-python main.py init
-Basic Usage
-bash
-# Ask questions about Stripe
-=======
-SmartPayDoc: LLM-Powered Stripe Assistant
+- **🤔 Smart Q&A**: Ask questions about Stripe API in natural language
+- **⚡ Code Generation**: Generate boilerplate code for payments, subscriptions, and more
+- **🌐 Web Interface**: Modern, responsive web UI for easy interaction
+- **🔍 Context-Aware**: Uses RAG (Retrieval-Augmented Generation) for accurate, up-to-date responses
+- **🛠️ Multi-Language Support**: Python, JavaScript, and more
+- **🎯 Framework-Aware**: Flask, FastAPI, Express, and other frameworks
 
- 
+## 🚀 Quick Start
 
-An intelligent command-line assistant that helps developers integrate Stripe faster using AI-powered documentation retrieval, code generation, and error diagnosis.
+### Prerequisites
 
-⸻
+- Python 3.8+
+- Node.js 14+ (for development)
+- Stripe API key
+- Anthropic API key (for AI capabilities)
 
-Table of Contents
-	•	Features
-	•	Quick Start
-	•	Installation
-	•	Setup
-	•	Basic Usage
-	•	Commands
-	•	ask
-	•	generate
-	•	debug
-	•	webhook
-	•	Examples
-	•	Ask Questions
-	•	Generate Code
-	•	Debug Errors
-	•	Core Components
-	•	Configuration
-	•	Environment Variables
-	•	Custom Templates
-	•	Development
-	•	Contributing
-	•	Roadmap
-	•	Use Cases
-	•	License
-	•	Acknowledgments
-	•	Support
+### Installation
 
-⸻
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/jadenfix/smartpaydoc.git
+   cd smartpaydoc
+   ```
 
-Features
-	•	Smart Q&A: Ask questions about Stripe API in natural language
-	•	Code Generation: Generate boilerplate code for payments, subscriptions, and more
-	•	Error Diagnosis: Analyze and fix Stripe errors with AI-powered solutions
-	•	Webhook Analysis: Understand and handle webhook payloads
-	•	Multi-Language Support: Python, JavaScript, and more
-	•	Framework-Aware: Flask, FastAPI, Express, and other frameworks
+2. **Install Python dependencies**
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+3. **Set up environment variables**
+   ```bash
+   cp .env.template .env
+   # Edit .env with your API keys
+   ```
+
+4. **Set up the web interface**
+   ```bash
+   cd web
+   python main.py
+   ```
+
+5. **Access the web interface**
+   Open your browser and navigate to `http://localhost:8000`
+
+## 🌐 Web Interface
+
+The web interface provides an easy way to interact with SmartPayDoc:
+
+- **Ask Questions**: Get answers about the Stripe API
+- **Generate Code**: Create code snippets in various languages and frameworks
+- **Interactive Examples**: Test and modify generated code
+
+## 🚀 Deployment
+
+### Vercel (Recommended)
+
+1. Push your code to a GitHub repository
+2. Connect the repository to Vercel
+3. Set up the following environment variables in Vercel:
+   - `ANTHROPIC_API_KEY`: Your Anthropic API key
+   - `STRIPE_API_KEY`: Your Stripe secret key
+   - `PYTHON_VERSION`: 3.8 (or your preferred version)
+
+## 🛠️ Development
+
+### Project Structure
+
+```
+smartpaydoc/
+├── web/                  # Web application
+│   ├── main.py           # FastAPI application
+│   ├── requirements.txt  # Python dependencies
+│   ├── static/           # Static files (JS, CSS)
+│   └── templates/        # HTML templates
+├── rag_engine.py         # RAG engine for document retrieval
+├── codegen.py            # Code generation logic
+├── requirements.txt      # Main dependencies
+└── vercel.json           # Vercel configuration
+```
+
+### Running Locally
+
+1. **Start the development server**
+   ```bash
+   cd web
+   uvicorn main:app --reload
+   ```
+
+2. **Access the application**
+   - Web interface: http://localhost:8000
+   - API documentation: http://localhost:8000/docs
+
+## 🤝 Contributing
+
+Contributions are welcome! Please follow these steps:
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+## 📝 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- [Stripe](https://stripe.com/) for their excellent API and documentation
+- [Anthropic](https://www.anthropic.com/) for their powerful AI models
+- [FastAPI](https://fastapi.tiangolo.com/) for the web framework
+- [Tailwind CSS](https://tailwindcss.com/) for styling
 
 ⸻
 
@@ -97,28 +136,16 @@ Setup
 	3.	Populate your .env file:
 
 OPENAI_API_KEY=sk-your-openai-key
-STRIPE_SECRET_KEY=sk-your-stripe-key
 
-	4.	Initialize SmartPayDoc:
+## 🙏 Acknowledgments
 
-python main.py init
+- [Stripe](https://stripe.com/) for their excellent API and documentation
+- [Anthropic](https://www.anthropic.com/) for their powerful AI models
+- [FastAPI](https://fastapi.tiangolo.com/) for the web framework
+- [Tailwind CSS](https://tailwindcss.com/) for styling
 
-Basic Usage
+## 📚 Commands
 
-# Ask a question about Stripe
->>>>>>> origin/main
-python main.py ask "How do I create a customer with metadata?"
-
-# Generate code
-python main.py generate "subscription checkout" --lang python --framework flask
-
-# Debug errors
-python main.py debug "card_declined: Your card was declined"
-
-# Analyze webhooks
-python main.py webhook webhook_payload.json
-<<<<<<< HEAD
-📚 Commands
 ask - Ask Questions
 Get answers to Stripe API questions with code examples.
 
