@@ -1,0 +1,8 @@
+README.md
+setup.py
+smartpaydoc.egg-info/PKG-INFO
+smartpaydoc.egg-info/SOURCES.txt
+smartpaydoc.egg-info/dependency_links.txt
+smartpaydoc.egg-info/entry_points.txt
+smartpaydoc.egg-info/requires.txt
+smartpaydoc.egg-info/top_level.txt
