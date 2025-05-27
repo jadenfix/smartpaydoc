@@ -2,12 +2,8 @@
   "version": 2,
   "builds": [
     {
-      "src": "web/main.py",
-      "use": "@vercel/python",
-      "config": {
-        "maxLambdaSize": "15mb",
-        "pythonVersion": "3.9"
-      }
+      "src": "api/index.py",
+      "use": "@vercel/python"
     },
     {
       "src": "web/static/**",
@@ -20,24 +16,8 @@
       "dest": "/web/static/$1"
     },
     {
-      "src": "/(.*\\.(?:js|css|jpg|jpeg|png|gif|ico|svg|woff|woff2|ttf|eot))$",
-      "dest": "/web/static/$1"
-    },
-    {
-      "src": "/api/(.*)",
-      "dest": "/web/main.py"
-    },
-    {
       "src": "/(.*)",
-      "dest": "/web/main.py"
+      "dest": "/api/index.py"
     }
-  ],
-  "env": {
-    "PYTHONPATH": "/var/task/web:/var/task"
-  },
-  "build": {
-    "env": {
-      "PYTHON_VERSION": "3.9"
-    }
-  }
+  ]
 }
