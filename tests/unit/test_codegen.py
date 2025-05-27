@@ -1,11 +1,16 @@
 """
+<<<<<<< HEAD
 Unit tests for codegen.py using Anthropic
+=======
+Unit tests for codegen.py
+>>>>>>> origin/main
 """
 import pytest
 from unittest.mock import patch, AsyncMock, MagicMock
 from codegen import StripeCodeGenerator
 
 class TestStripeCodeGenerator:
+<<<<<<< HEAD
     """Test cases for StripeCodeGenerator class with Anthropic"""
     
     @pytest.fixture(autouse=True)
@@ -13,6 +18,15 @@ class TestStripeCodeGenerator:
         """Set up the test generator with a mock Anthropic client"""
         self.generator = StripeCodeGenerator()
         self.mock_anthropic_client = mock_anthropic_client
+=======
+    """Test cases for StripeCodeGenerator class"""
+    
+    @pytest.fixture(autouse=True)
+    def setup_generator(self, mock_openai_client):
+        """Set up the test generator with a mock OpenAI client"""
+        self.generator = StripeCodeGenerator()
+        self.mock_openai_client = mock_openai_client
+>>>>>>> origin/main
     
     def test_load_templates(self):
         """Test that code templates are loaded correctly"""
@@ -39,6 +53,7 @@ class TestStripeCodeGenerator:
         language = "python"
         framework = "flask"
         
+<<<<<<< HEAD
         # Mock the _get_template method to return a test template
         with patch.object(self.generator, '_get_template', return_value="@app.route\ndef payment_intent():\n    intent = stripe.PaymentIntent.create(\n        amount=2000,  # $20.00\n        currency='usd',\n    )\n    return jsonify({'client_secret': intent.client_secret})"):
             result = await self.generator.generate_code(task, language, framework)
@@ -86,6 +101,39 @@ class TestStripeCodeGenerator:
         assert "create a custom payment flow" in call_args["messages"][0]["content"]
         assert "python" in str(call_args["messages"][0]["content"])
         assert "flask" in str(call_args["messages"][0]["content"])
+=======
+        result = await self.generator.generate_code(task, language, framework)
+        
+        # Verify the result contains expected Flask route code
+        assert "@app.route" in result
+        assert "stripe.PaymentIntent.create" in result
+        assert "return jsonify" in result
+    
+    @pytest.mark.asyncio
+    async def test_generate_code_using_llm(self):
+        """Test code generation using LLM fallback"""
+        # Mock the LLM response
+        mock_response = MagicMock()
+        mock_response.choices[0].message.content = "```python\n# Test generated code\nprint('Hello, Stripe!')\n```"
+        self.mock_openai_client.chat.completions.create.return_value = mock_response
+        
+        # Test with a task that doesn't match any template
+        task = "create a custom payment flow with 3D Secure"
+        language = "python"
+        framework = "django"
+        
+        result = await self.generator.generate_code(task, language, framework)
+        
+        # Verify the result contains the generated code
+        assert "Test generated code" in result
+        assert "print('Hello, Stripe!')" in result
+        
+        # Verify the LLM was called with the correct parameters
+        call_args = self.mock_openai_client.chat.completions.create.call_args[1]
+        assert "create a custom payment flow with 3D Secure" in call_args["messages"][0]["content"]
+        assert "python" in call_args["messages"][0]["content"]
+        assert "django" in call_args["messages"][0]["content"]
+>>>>>>> origin/main
     
     def test_extract_code_from_markdown(self):
         """Test extraction of code blocks from markdown"""
@@ -105,10 +153,37 @@ class TestStripeCodeGenerator:
         result = self.generator._extract_code_from_markdown(markdown)
         
         # Verify the code was extracted correctly
+<<<<<<< HEAD
+=======
+        assert "def hello():" in result
+        assert "print(\"Hello, World!\")" in result
+        assert "Here's some Python code" not in result
+        
+        # Test with multiple code blocks (should return the first one)
+        markdown = """
+        ```javascript
+        console.log("First code block");
+        ```
+        
+        ```python
+        print("Second code block")
+        ```
+        """
+        
+        result = self.generator._extract_code_from_markdown(markdown)
+        assert "console.log" in result
+        assert "print" not in result
+        
+        # Test with no code blocks (should return the original text)
+        markdown = "Just some regular text, no code here."
+        result = self.generator._extract_code_from_markdown(markdown)
+        assert result == markdown
+>>>>>>> origin/main
     
     @pytest.mark.asyncio
     async def test_generate_code_with_custom_instructions(self):
         """Test code generation with custom instructions"""
+<<<<<<< HEAD
         # Mock the Anthropic response
         mock_message = MagicMock()
         mock_message.content = [{"type": "text", "text": "```python\n# Custom code\nprint('Hello')"}]        
@@ -128,6 +203,29 @@ class TestStripeCodeGenerator:
         # Verify the Anthropic client was called with the custom instructions
         call_args = self.mock_anthropic_client.messages.create.call_args[1]
         assert instructions in str(call_args["messages"][0]["content"])
+=======
+        # Mock the LLM response
+        mock_response = MagicMock()
+        mock_response.choices[0].message.content = "```python\n# Custom code\nprint('Custom code')\n```"
+        self.mock_openai_client.chat.completions.create.return_value = mock_response
+        
+        # Test with custom instructions
+        task = "create a payment form"
+        language = "python"
+        framework = "flask"
+        custom_instructions = "Use Flask-WTF for form handling"
+        
+        result = await self.generator.generate_code(
+            task, language, framework, custom_instructions
+        )
+        
+        # Verify the result contains the generated code
+        assert "Custom code" in result
+        
+        # Verify the custom instructions were included in the LLM prompt
+        call_args = self.mock_openai_client.chat.completions.create.call_args[1]
+        assert "Use Flask-WTF for form handling" in call_args["messages"][0]["content"]
+>>>>>>> origin/main
     
     def test_get_template(self):
         """Test getting the most relevant template for a task"""

@@ -6,6 +6,7 @@ Handles document ingestion, embedding, and retrieval
 import os
 import json
 import asyncio
+<<<<<<< HEAD
 from typing import List, Dict, Optional, Any, Tuple
 import json
 import pickle
@@ -19,6 +20,17 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
+=======
+from typing import List, Dict, Any
+import openai
+from openai import AsyncOpenAI
+import numpy as np
+from sklearn.metrics.pairwise import cosine_similarity
+import pickle
+from dataclasses import dataclass
+from pathlib import Path
+import aiohttp
+>>>>>>> origin/main
 import re
 from bs4 import BeautifulSoup
 
@@ -31,6 +43,7 @@ class StripeDocument:
     embedding: np.ndarray = None
 
 class StripeRAGEngine:
+<<<<<<< HEAD
     """RAG engine for Stripe documentation using Anthropic"""
     
     def __init__(self):
@@ -43,6 +56,13 @@ class StripeRAGEngine:
         self.embeddings_cache = "stripe_embeddings.pkl"
         self.docs_cache = "stripe_docs.json"
         self.embedding_model = "claude-3-opus-20240229"
+=======
+    def __init__(self):
+        self.client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+        self.documents: List[StripeDocument] = []
+        self.embeddings_cache = "stripe_embeddings.pkl"
+        self.docs_cache = "stripe_docs.json"
+>>>>>>> origin/main
         
     async def initialize(self):
         """Initialize the RAG engine with Stripe documentation"""
@@ -228,9 +248,17 @@ except stripe.error.InvalidRequestError as e:
 
 HTTP Status Codes: 200 (OK), 400 (Bad Request), 401 (Unauthorized), 402 (Request Failed), 403 (Forbidden), 404 (Not Found), 409 (Conflict), 429 (Too Many Requests), 500+ (Server Errors)
                 """,
+<<<<<<< HEAD
         }
     ]
     
+=======
+                "url": "https://stripe.com/docs/error-handling",
+                "category": "errors"
+            }
+        ]
+        
+>>>>>>> origin/main
         # Add more comprehensive documentation
         for section in stripe_sections:
             doc = StripeDocument(
@@ -241,6 +269,7 @@ HTTP Status Codes: 200 (OK), 400 (Bad Request), 401 (Unauthorized), 402 (Request
             )
             self.documents.append(doc)
 
+<<<<<<< HEAD
     async def _get_embedding(self, text: str) -> List[float]:
         """Get embedding for a given text using Anthropic"""
         try:
@@ -272,17 +301,46 @@ HTTP Status Codes: 200 (OK), 400 (Bad Request), 401 (Unauthorized), 402 (Request
             except Exception as e:
                 logger.error(f"Error processing document {doc.title}: {e}")
                 continue
+=======
+    async def _generate_embeddings(self):
+        """Generate embeddings for all documents"""
+        print("🧠 Generating embeddings...")
+        
+        for i, doc in enumerate(self.documents):
+            try:
+                response = await self.client.embeddings.create(
+                    model="text-embedding-ada-002",
+                    input=f"{doc.title}\n\n{doc.content}"
+                )
+                doc.embedding = np.array(response.data[0].embedding)
+                print(f"✅ Generated embedding {i+1}/{len(self.documents)}")
+                
+                # Rate limiting
+                await asyncio.sleep(0.1)
+                
+            except Exception as e:
+                print(f"❌ Failed to generate embedding for {doc.title}: {e}")
+>>>>>>> origin/main
 
     async def _cache_data(self):
         """Cache documents and embeddings"""
         # Cache embeddings
         embeddings_data = {
+<<<<<<< HEAD
             'embeddings': [doc.embedding for doc in self.documents if hasattr(doc, 'embedding') and doc.embedding is not None],
             'titles': [doc.title for doc in self.documents if hasattr(doc, 'embedding') and doc.embedding is not None]
         }
         with open(self.embeddings_cache, 'wb') as f:
             pickle.dump(embeddings_data, f)
             
+=======
+            'embeddings': [doc.embedding for doc in self.documents if doc.embedding is not None],
+            'titles': [doc.title for doc in self.documents if doc.embedding is not None]
+        }
+        with open(self.embeddings_cache, 'wb') as f:
+            pickle.dump(embeddings_data, f)
+        
+>>>>>>> origin/main
         # Cache documents
         docs_data = [
             {
@@ -301,11 +359,19 @@ HTTP Status Codes: 200 (OK), 400 (Bad Request), 401 (Unauthorized), 402 (Request
         # Load documents
         with open(self.docs_cache, 'r') as f:
             docs_data = json.load(f)
+<<<<<<< HEAD
             
         # Load embeddings
         with open(self.embeddings_cache, 'rb') as f:
             embeddings_data = pickle.load(f)
             
+=======
+        
+        # Load embeddings
+        with open(self.embeddings_cache, 'rb') as f:
+            embeddings_data = pickle.load(f)
+        
+>>>>>>> origin/main
         # Reconstruct documents with embeddings
         for i, doc_data in enumerate(docs_data):
             doc = StripeDocument(
@@ -318,6 +384,7 @@ HTTP Status Codes: 200 (OK), 400 (Bad Request), 401 (Unauthorized), 402 (Request
                 doc.embedding = embeddings_data['embeddings'][i]
             self.documents.append(doc)
 
+<<<<<<< HEAD
     async def query(self, question: str, language: str = "python"):
         """Query the RAG system with a question"""
         if not self.documents:
@@ -414,3 +481,77 @@ If the context doesn't contain the answer, say so clearly.
         query_embedding = np.array(query_embedding)
         doc_embedding = np.array(doc_embedding)
         return cosine_similarity(query_embedding.reshape(1, -1), doc_embedding.reshape(1, -1))[0][0]
+=======
+    async def query(self, question: str, language: str = "python") -> str:
+        """Query the RAG system with a question"""
+        if not self.documents:
+            raise Exception("RAG engine not initialized. Run 'smartpaydoc init' first.")
+        
+        # Generate query embedding
+        try:
+            response = await self.client.embeddings.create(
+                model="text-embedding-ada-002",
+                input=question
+            )
+            query_embedding = np.array(response.data[0].embedding)
+        except Exception as e:
+            raise Exception(f"Failed to generate query embedding: {e}")
+        
+        # Find most relevant documents
+        relevant_docs = self._find_relevant_docs(query_embedding, top_k=3)
+        
+        # Generate response using LLM
+        context = "\n\n".join([
+            f"**{doc.title}**\n{doc.content}"
+            for doc in relevant_docs
+        ])
+        
+        prompt = f"""You are SmartPayDoc, an expert Stripe developer assistant. Answer the user's question using the provided Stripe documentation context.
+
+Context from Stripe documentation:
+{context}
+
+User question: {question}
+Preferred language: {language}
+
+Guidelines:
+- Provide accurate, practical answers
+- Include code examples in the requested language when relevant
+- Explain concepts clearly
+- Reference relevant Stripe documentation
+- If the question can't be answered from the context, say so clearly
+
+Answer:"""
+
+        try:
+            response = await self.client.chat.completions.create(
+                model="gpt-4",
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=1000,
+                temperature=0.7
+            )
+            return response.choices[0].message.content
+        except Exception as e:
+            raise Exception(f"Failed to generate response: {e}")
+
+    def _find_relevant_docs(self, query_embedding: np.ndarray, top_k: int = 3) -> List[StripeDocument]:
+        """Find the most relevant documents using cosine similarity"""
+        if not any(doc.embedding is not None for doc in self.documents):
+            return self.documents[:top_k]  # Fallback if no embeddings
+        
+        similarities = []
+        valid_docs = []
+        
+        for doc in self.documents:
+            if doc.embedding is not None:
+                similarity = cosine_similarity(
+                    query_embedding.reshape(1, -1),
+                    doc.embedding.reshape(1, -1)
+                )[0][0]
+                similarities.append(similarity)
+                valid_docs.append(doc)
+        
+        # Sort by similarity and return top_k
+        sorted_indices = np.argsort(similarities)[::-1]
+        return [valid_docs[i] for i in sorted_indices[:top_k]]
+>>>>>>> origin/main

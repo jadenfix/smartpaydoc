@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 """
+<<<<<<< HEAD
 SmartPayDoc: LLM-Powered Developer Assistant for Stripe Integrations using Anthropic
+=======
+SmartPayDoc: LLM-Powered Developer Assistant for Stripe Integrations
+>>>>>>> origin/main
 CLI Entry Point
 """
 
@@ -14,6 +18,7 @@ from typing import Optional
 import os
 from dotenv import load_dotenv
 
+<<<<<<< HEAD
 # Load environment variables first
 load_dotenv()
 
@@ -23,10 +28,13 @@ if not os.getenv("ANTHROPIC_API_KEY"):
 if not os.getenv("STRIPE_SECRET_KEY"):
     print("Warning: STRIPE_SECRET_KEY not set. Some features may not work.")
 
+=======
+>>>>>>> origin/main
 from rag_engine import StripeRAGEngine
 from codegen import StripeCodeGenerator
 from error_helper import StripeErrorHelper
 
+<<<<<<< HEAD
 app = typer.Typer(help="🚀 SmartPayDoc: Your AI Stripe Integration Assistant")
 console = Console()
 
@@ -38,6 +46,18 @@ try:
 except Exception as e:
     console.print(f"❌ Error initializing components: {e}", style="red")
     raise
+=======
+# Load environment variables
+load_dotenv()
+
+app = typer.Typer(help="🚀 SmartPayDoc: Your AI Stripe Integration Assistant")
+console = Console()
+
+# Initialize components
+rag = StripeRAGEngine()
+codegen = StripeCodeGenerator()
+error_helper = StripeErrorHelper()
+>>>>>>> origin/main
 
 @app.command()
 def ask(

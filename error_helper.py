@@ -1,11 +1,16 @@
 """
 Stripe Error Helper and Webhook Analyzer
+<<<<<<< HEAD
 Diagnoses common Stripe errors and analyzes webhook payloads using Anthropic
+=======
+Diagnoses common Stripe errors and analyzes webhook payloads
+>>>>>>> origin/main
 """
 
 import os
 import json
 import re
+<<<<<<< HEAD
 import logging
 from typing import Dict, Any, Optional, List
 import anthropic
@@ -21,6 +26,16 @@ class StripeErrorHelper:
             api_key=os.getenv("ANTHROPIC_API_KEY")
         )
         self.model = os.getenv("ANTHROPIC_MODEL", "claude-3-opus-20240229")
+=======
+from typing import Dict, Any, Optional
+from openai import AsyncOpenAI
+import hashlib
+import hmac
+
+class StripeErrorHelper:
+    def __init__(self):
+        self.client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+>>>>>>> origin/main
         self.common_errors = self._load_common_errors()
         self.webhook_events = self._load_webhook_events()
     
@@ -173,7 +188,11 @@ class StripeErrorHelper:
         matched_error = self._match_error_pattern(error_log)
         
         if matched_error:
+<<<<<<< HEAD
             diagnosis = self._format_error_diagnosis(matched_error["type"], matched_error["description"], context, error_log)
+=======
+            diagnosis = self._format_error_diagnosis(matched_error, error_log)
+>>>>>>> origin/main
         else:
             # Use LLM for unknown errors
             diagnosis = await self._llm_diagnose_error(error_log, context)
@@ -190,6 +209,7 @@ class StripeErrorHelper:
         
         return None
     
+<<<<<<< HEAD
     def _format_error_diagnosis(self, error_type: str, error_message: str, context: str = "", error_log: str = "") -> str:
         """Format the error diagnosis with a clean, readable output
         
@@ -216,6 +236,37 @@ class StripeErrorHelper:
             
         return diagnosis
     
+=======
+    def _format_error_diagnosis(self, error_info: Dict, error_log: str) -> str:
+        """Format a diagnosis for a known error"""
+        solutions_list = "\n".join([f"• {solution}" for solution in error_info["solutions"]])
+        
+        return f"""## 🔍 Error Diagnosis
+
+**Error Type:** {error_info['type']}
+
+**Description:** {error_info['description']}
+
+**Original Error:**
+```
+{error_log}
+```
+
+## 🛠️ Immediate Solutions
+
+{solutions_list}
+
+## 🔒 Prevention Strategy
+
+{error_info['prevention']}
+
+## 📚 Additional Resources
+
+- [Stripe Error Handling Guide](https://stripe.com/docs/error-handling)
+- [Testing Error Scenarios](https://stripe.com/docs/testing#cards-responses)
+"""
+
+>>>>>>> origin/main
     async def _llm_diagnose_error(self, error_log: str, context: Optional[str]) -> str:
         """Use LLM to diagnose unknown errors"""
         prompt = f"""You are a Stripe integration expert. Analyze this error and provide a comprehensive diagnosis.
@@ -237,6 +288,7 @@ Please provide:
 Format your response with clear markdown sections."""
 
         try:
+<<<<<<< HEAD
             message = await self.client.messages.create(
                 model=self.model,
                 max_tokens=1000,
@@ -313,6 +365,103 @@ Format your response with clear markdown sections."""
         
         if not data_object:
             return {"error": "No data object found in webhook."}
+=======
+            response = await self.client.chat.completions.create(
+                model="gpt-4",
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=1500,
+                temperature=0.3
+            )
+            
+            return response.choices[0].message.content
+            
+        except Exception as e:
+            return f"## ❌ Analysis Error\n\nFailed to analyze error: {e}\n\n**Original Error:**\n```\n{error_log}\n```"
+
+    async def analyze_webhook(self, payload: str, verify_signature: bool = False) -> str:
+        """Analyze webhook payload and provide insights"""
+        
+        try:
+            # Parse JSON payload
+            if isinstance(payload, str):
+                webhook_data = json.loads(payload)
+            else:
+                webhook_data = payload
+                
+        except json.JSONDecodeError as e:
+            return f"## ❌ Invalid JSON Payload\n\nError: {e}\n\nPlease provide a valid JSON webhook payload."
+        
+        event_type = webhook_data.get('type', 'unknown')
+        event_id = webhook_data.get('id', 'unknown')
+        created = webhook_data.get('created', 'unknown')
+        
+        # Get event information
+        event_info = self.webhook_events.get(event_type, {
+            "description": "Unknown event type",
+            "action": "Check Stripe documentation for this event",
+            "data_object": "Unknown"
+        })
+        
+        # Analyze the data object
+        data_analysis = self._analyze_webhook_data(webhook_data.get('data', {}).get('object', {}))
+        
+        analysis = f"""## 📡 Webhook Analysis
+
+**Event Type:** `{event_type}`
+**Event ID:** `{event_id}`
+**Created:** {created}
+
+### 📋 Event Description
+{event_info['description']}
+
+### ⚡ Recommended Action
+{event_info['action']}
+
+### 📊 Data Object Analysis
+{data_analysis}
+
+### 🔧 Implementation Example
+
+```python
+@app.route('/webhook', methods=['POST'])
+def handle_webhook():
+    payload = request.get_data()
+    sig_header = request.headers.get('Stripe-Signature')
+    
+    try:
+        event = stripe.Webhook.construct_event(
+            payload, sig_header, webhook_secret
+        )
+    except ValueError:
+        return 'Invalid payload', 400
+    except stripe.error.SignatureVerificationError:
+        return 'Invalid signature', 400
+    
+    if event['type'] == '{event_type}':
+        {self._generate_event_handler(event_type, event_info)}
+    
+    return {{'status': 'success'}}
+```
+
+### 🔒 Security Checklist
+
+- ✅ Verify webhook signatures
+- ✅ Handle idempotency (store event IDs)
+- ✅ Return 200 status quickly
+- ✅ Process events asynchronously
+- ✅ Handle duplicate events gracefully
+
+### 📚 Documentation
+[Stripe Webhook Events](https://stripe.com/docs/api/events/types#{event_type.replace('.', '_')})
+"""
+        
+        return analysis
+    
+    def _analyze_webhook_data(self, data_object: Dict) -> str:
+        """Analyze the data object in a webhook"""
+        if not data_object:
+            return "No data object found in webhook."
+>>>>>>> origin/main
         
         object_type = data_object.get('object', 'unknown')
         object_id = data_object.get('id', 'unknown')

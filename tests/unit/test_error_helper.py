@@ -1,10 +1,15 @@
 """
+<<<<<<< HEAD
 Unit tests for error_helper.py using Anthropic
+=======
+Unit tests for error_helper.py
+>>>>>>> origin/main
 """
 import pytest
 import json
 import hmac
 import hashlib
+<<<<<<< HEAD
 from unittest.mock import patch, MagicMock, AsyncMock
 from error_helper import StripeErrorHelper
 
@@ -16,6 +21,19 @@ class TestStripeErrorHelper:
         """Set up the test helper with a mock Anthropic client"""
         self.helper = StripeErrorHelper()
         self.mock_anthropic_client = mock_anthropic_client
+=======
+from unittest.mock import patch, MagicMock
+from error_helper import StripeErrorHelper
+
+class TestStripeErrorHelper:
+    """Test cases for StripeErrorHelper class"""
+    
+    @pytest.fixture(autouse=True)
+    def setup_helper(self, mock_openai_client):
+        """Set up the test helper with a mock OpenAI client"""
+        self.helper = StripeErrorHelper()
+        self.mock_openai_client = mock_openai_client
+>>>>>>> origin/main
     
     def test_load_common_errors(self):
         """Test that common errors are loaded correctly"""
@@ -27,12 +45,17 @@ class TestStripeErrorHelper:
         """Test that webhook events are loaded correctly"""
         assert len(self.helper.webhook_events) > 0
         assert "payment_intent.succeeded" in self.helper.webhook_events
+<<<<<<< HEAD
         # Update the assertion to match the actual implementation
         assert self.helper.webhook_events.get("payment_intent.succeeded") is not None
+=======
+        assert "charge.failed" in self.helper.webhook_events
+>>>>>>> origin/main
     
     @pytest.mark.asyncio
     async def test_diagnose_error_known_error(self):
         """Test diagnosing a known error"""
+<<<<<<< HEAD
         # Mock the Anthropic response for known error
         mock_message = MagicMock()
         mock_message.content = [{"type": "text", "text": "Card declined: insufficient funds"}]
@@ -86,6 +109,25 @@ class TestStripeErrorHelper:
         # Verify the Anthropic client was called with the right parameters
         call_args = self.mock_anthropic_client.messages.create.call_args[1]
         assert "payment_intent.succeeded" in str(call_args["messages"][0]["content"])
+=======
+        error_log = "card_declined: Your card was declined."
+        result = await self.helper.diagnose_error(error_log)
+        assert "card_declined" in result.lower()
+        assert "insufficient_funds" in result.lower()
+    
+    @pytest.mark.asyncio
+    async def test_diagnose_error_unknown_error(self):
+        """Test diagnosing an unknown error using the LLM"""
+        error_log = "some_unknown_error: Something went wrong"
+        
+        # Mock the LLM response
+        mock_response = MagicMock()
+        mock_response.choices[0].message.content = "This is a test diagnosis for an unknown error."
+        self.mock_openai_client.chat.completions.create.return_value = mock_response
+        
+        result = await self.helper.diagnose_error(error_log)
+        assert "test diagnosis" in result.lower()
+>>>>>>> origin/main
     
     def test_verify_webhook_signature_valid(self):
         """Test webhook signature verification with valid signature"""
@@ -133,6 +175,7 @@ class TestStripeErrorHelper:
 
     def test_format_error_diagnosis(self):
         """Test formatting of error diagnosis"""
+<<<<<<< HEAD
         diagnosis = {
             "error_type": "card_declined",
             "description": "The card was declined",
@@ -157,3 +200,18 @@ class TestStripeErrorHelper:
         empty_diagnosis = {}
         formatted = self.helper._format_error_diagnosis(empty_diagnosis)
         assert "No specific error information available" in formatted.lower()
+=======
+        error_info = {
+            "type": "card_error",
+            "code": "card_declined",
+            "message": "Your card was declined.",
+            "solutions": ["Try a different payment method", "Contact your bank"],
+            "documentation": "https://stripe.com/docs/declines"
+        }
+        
+        result = self.helper._format_error_diagnosis(error_info, "card_declined: Your card was declined.")
+        assert "card_declined" in result
+        assert "contact your bank" in result.lower()
+        assert "try a different payment method" in result.lower()
+        assert "stripe.com/docs/declines" in result
+>>>>>>> origin/main
