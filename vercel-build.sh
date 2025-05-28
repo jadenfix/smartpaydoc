@@ -3,15 +3,18 @@ set -e
 
 echo "=== Starting Vercel build process ==="
 
-# Create a clean Python environment
-export PYTHONPATH=$PWD/python
+# Create necessary directories
+echo "=== Creating directories ==="
 mkdir -p python
 
-# Install Python requirements with specific versions that have pre-built wheels
+# Set Python path
+export PYTHONPATH=$PWD/python:$PWD/web:$PWD
+
+# Install Python requirements with specific versions
 echo "=== Installing Python packages ==="
 pip install --upgrade pip
 
-# Install only essential packages with known working versions
+# Install core dependencies with specific versions to avoid compilation
 echo "=== Installing core dependencies ==="
 pip install \
     fastapi==0.68.0 \
@@ -21,6 +24,12 @@ pip install \
     requests==2.26.0 \
     python-jose[cryptography]==3.3.0 \
     passlib[bcrypt]==1.7.4 \
+    numpy==1.23.5 \
+    scikit-learn==1.0.2 \
+    sentence-transformers==2.2.2 \
+    anthropic==0.7.5 \
+    aiohttp==3.8.4 \
+    beautifulsoup4==4.11.1 \
     --target=./python \
     --no-cache-dir \
     --no-warn-script-location
@@ -35,6 +44,29 @@ stripe==7.0.0
 requests==2.26.0
 python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
+numpy==1.23.5
+scikit-learn==1.0.2
+sentence-transformers==2.2.2
+anthropic==0.7.5
+aiohttp==3.8.4
+beautifulsoup4==4.11.1
 EOL
+
+# Copy necessary files
+echo "=== Copying application files ==="
+cp -r web/* python/
+cp rag_engine.py python/
+cp stripe_docs.json python/
+
+# Create __init__.py files to make Python treat directories as packages
+echo "=== Creating __init__.py files ==="
+touch python/__init__.py
+
+# Make sure the static directory exists
+mkdir -p python/static
+
+# Set proper permissions
+echo "=== Setting permissions ==="
+chmod -R 755 python
 
 echo "=== Build completed successfully ==="

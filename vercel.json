@@ -1,13 +1,22 @@
 {
   "version": 2,
   "builds": [
-    { "src": "api/index.py", "use": "@vercel/python" },
+    { "src": "web/main.py", "use": "@vercel/python" },
     { "src": "web/static/**", "use": "@vercel/static" }
   ],
   "routes": [
     { "src": "/static/(.*)", "dest": "/web/static/$1" },
-    { "src": "/(.*)", "dest": "/api/index.py" }
+    { "src": "/api/(.*)", "dest": "/web/main.py" },
+    { "src": "/", "dest": "/web/main.py" },
+    { "src": "/(.*)", "dest": "/web/main.py" }
   ],
   "buildCommand": "./vercel-build.sh",
-  "outputDirectory": "."
+  "outputDirectory": ".",
+  "env": {
+    "PYTHONPATH": "/var/task:/var/task/web:/var/task/api"
+  },
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/web/main.py" },
+    { "source": "/(.*)", "destination": "/web/main.py" }
+  ]
 }

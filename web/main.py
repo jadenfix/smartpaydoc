@@ -1,26 +1,43 @@
 from fastapi import FastAPI, Request, Form, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from fastapi.responses import HTMLResponse, FileResponse
-from fastapi.staticfiles import StaticFiles
-import subprocess
+from fastapi.responses import HTMLResponse, FileResponse, JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 import os
+import sys
 from pathlib import Path
+import logging
 
-# Get the directory where main.py is located
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Add the parent directory to Python path
 BASE_DIR = Path(__file__).parent
+sys.path.append(str(BASE_DIR.parent))
 
 app = FastAPI()
+
+# Configure CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # In production, replace with your frontend URL
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Configure templates
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
-# Create static directory if it doesn't exist
+# Ensure static directory exists
 os.makedirs(BASE_DIR / "static", exist_ok=True)
 
 # Mount static files
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
-templates.env.globals['url_for'] = lambda name, **params: f"/static/{params['filename']}" if name == 'static' else app.url_path_for(name, **params)
+
+# Add url_for to templates
+templates.env.globals['url_for'] = app.url_path_for
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
@@ -76,66 +93,94 @@ def format_response(response_text: str) -> str:
     # If no code blocks, return the cleaned text
     return cleaned_text
 
-from rag_engine import StripeRAGEngine
+# Import RAG engine with error handling
+try:
+    from rag_engine import StripeRAGEngine
+    RAG_AVAILABLE = True
+except ImportError as e:
+    logger.error(f"Failed to import RAG engine: {e}")
+    RAG_AVAILABLE = False
+
 import os
 from dotenv import load_dotenv
 
 # Load environment variables
-load_dotenv()
+load_dotenv(dotenv_path=str(BASE_DIR.parent / '.env'))
 
 # Initialize RAG
 rag = None
+
+# Check for required environment variables
+required_env_vars = ["ANTHROPIC_API_KEY"]
+missing_vars = [var for var in required_env_vars if not os.getenv(var)]
+
+if missing_vars and RAG_AVAILABLE:
+    logger.warning(f"Missing required environment variables: {', '.join(missing_vars)}")
+    logger.warning("RAG functionality will be disabled")
+    RAG_AVAILABLE = False
 
 # Initialize RAG engine on startup
 @app.on_event("startup")
 async def startup_event():
     global rag
+    
+    if not RAG_AVAILABLE:
+        logger.warning("Skipping RAG engine initialization - not available")
+        return
+        
     try:
-        print("[DEBUG] Initializing RAG engine...")
+        logger.info("Initializing RAG engine...")
         rag = StripeRAGEngine()
-        print("[DEBUG] RAG engine instance created, initializing...")
+        logger.info("RAG engine instance created, initializing...")
         await rag.initialize()
-        print("✅ RAG engine initialized successfully")
-        print(f"[DEBUG] RAG engine has {len(rag.documents)} documents loaded")
+        logger.info(f"✅ RAG engine initialized successfully with {len(rag.documents)} documents")
     except Exception as e:
-        print(f"❌ Failed to initialize RAG engine: {e}")
-        import traceback
-        traceback.print_exc()
+        logger.error(f"❌ Failed to initialize RAG engine: {e}", exc_info=True)
         rag = None
 
 @app.post("/api/ask")
 async def ask_question(question: str = Form(...)):
+    if not RAG_AVAILABLE or not rag:
+        error_msg = "RAG functionality is currently unavailable. Please check server logs for details."
+        logger.error(error_msg)
+        return JSONResponse(
+            status_code=503,
+            content={"error": error_msg}
+        )
+    
+    if not question or not question.strip():
+        return JSONResponse(
+            status_code=400,
+            content={"error": "Question cannot be empty"}
+        )
+    
     try:
-        if not rag:
-            error_msg = "RAG engine not initialized. Please try again in a moment."
-            print(f"[ERROR] {error_msg}")
-            return {"error": error_msg}
-            
-        print(f"[DEBUG] Received question: {question}")
+        logger.info(f"Processing question: {question[:100]}...")
         
         # Get response from RAG
-        print("[DEBUG] Calling rag.ask()...")
         response = await rag.ask(question)
-        print(f"[DEBUG] Got response from rag.ask(): {response[:200] if response else 'None'}")
         
         if not response:
-            error_msg = "Received empty response from RAG engine"
-            print(f"[ERROR] {error_msg}")
-            return {"error": error_msg}
+            error_msg = "No response from RAG engine. Please try again."
+            logger.error(error_msg)
+            return JSONResponse(
+                status_code=500,
+                content={"error": error_msg}
+            )
         
         # Format the response
-        print("[DEBUG] Formatting response...")
         formatted_response = format_response(response)
-        print(f"[DEBUG] Formatted response: {formatted_response[:200]}...")
+        logger.info("Successfully processed question")
         
         return {"response": formatted_response}
         
     except Exception as e:
-        import traceback
         error_msg = f"Error processing your question: {str(e)}"
-        print(f"[ERROR] {error_msg}")
-        print(f"[DEBUG] Traceback: {traceback.format_exc()}")
-        return {"error": error_msg}
+        logger.error(error_msg, exc_info=True)
+        return JSONResponse(
+            status_code=500,
+            content={"error": error_msg}
+        )
 
 def clean_code_output(code_text: str) -> str:
     """Clean up the code output to ensure it's properly formatted."""
