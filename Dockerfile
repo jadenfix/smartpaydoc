@@ -17,11 +17,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
-# Install dependencies
-COPY requirements.txt constraints.txt ./
+# Install minimal dependencies first
+COPY requirements-minimal.txt .
 RUN pip install --upgrade pip && \
-    pip install --no-cache-dir wheel && \
-    pip install --no-cache-dir --constraint=constraints.txt -r requirements.txt
+    pip install --no-cache-dir -r requirements-minimal.txt
+
+# Copy and install full requirements if they exist
+COPY requirements.txt .
+RUN if [ -f "requirements.txt" ]; then \
+        pip install --no-cache-dir -r requirements.txt; \
+    fi
 
 # Runtime stage
 FROM python:3.9-slim

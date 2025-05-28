@@ -23,5 +23,5 @@ services:
       - .env
     healthCheckPath: /health
     autoDeploy: true
-    dockerfilePath: ./Dockerfile
+    dockerfilePath: ./Dockerfile.minimal
     numInstances: 1
