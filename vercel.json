@@ -7,5 +7,7 @@
   "routes": [
     { "src": "/static/(.*)", "dest": "/web/static/$1" },
     { "src": "/(.*)", "dest": "/api/index.py" }
-  ]
+  ],
+  "buildCommand": "./vercel-build.sh",
+  "outputDirectory": "."
 }
