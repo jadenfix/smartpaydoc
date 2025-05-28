@@ -2,12 +2,11 @@
   "version": 2,
   "builds": [
     { 
-      "src": "web/main.py", 
+      "src": "api/index.py", 
       "use": "@vercel/python",
       "config": { 
         "maxLambdaSize": "15mb",
-        "runtime": "python3.9",
-        "installCommand": "pip install -r requirements.in"
+        "runtime": "python3.9"
       }
     },
     { 
@@ -17,11 +16,12 @@
   ],
   "routes": [
     { "src": "/static/(.*)", "dest": "/web/static/$1" },
-    { "src": "/api/(.*)", "dest": "/web/main.py" },
-    { "src": "/", "dest": "/web/main.py" },
-    { "src": "/(.*)", "dest": "/web/main.py" }
+    { "src": "/api/(.*)", "dest": "/api/index.py" },
+    { "src": "/(.*)", "dest": "/api/index.py" }
   ],
-  "env": {
-    "PYTHONPATH": "/var/task:/var/task/web:/var/task/api"
+  "build": {
+    "env": {
+      "PYTHONPATH": "/var/task"
+    }
   }
 }
