@@ -14,3 +14,5 @@ passlib[bcrypt]==1.7.4
 faiss-cpu==1.7.3
 sentence-transformers==2.2.2
 anthropic==0.7.5
+aiofiles==23.2.1
+starlette==0.27.0
