@@ -18,10 +18,10 @@ RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
 # Install dependencies
-COPY requirements.txt .
+COPY requirements.txt constraints.txt ./
 RUN pip install --upgrade pip && \
     pip install --no-cache-dir wheel && \
-    pip install --no-cache-dir -r requirements.txt
+    pip install --no-cache-dir --constraint=constraints.txt -r requirements.txt
 
 # Runtime stage
 FROM python:3.9-slim
