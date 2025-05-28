@@ -1,23 +1,26 @@
 services:
   - type: web
     name: smartpaydoc
-    env: python
+    env: docker
     plan: free
     region: oregon
     buildCommand: |
-      python -m pip install --upgrade pip
+      pip install --upgrade pip
       pip install -r requirements.txt
     startCommand: uvicorn web.main:app --host 0.0.0.0 --port $PORT --proxy-headers
     envVars:
       - key: PYTHONUNBUFFERED
         value: "1"
       - key: PYTHONPATH
-        value: "/opt/render/project/src"
+        value: "/app"
+      - key: PORT
+        value: "10000"
       - key: CACHE_EMBEDDINGS
         value: "true"
       - key: CACHE_DIRECTORY
-        value: "/opt/render/project/src/cache"
+        value: "/app/cache"
     envFromFile:
       - .env
     healthCheckPath: /health
     autoDeploy: true
+    dockerfilePath: ./Dockerfile
