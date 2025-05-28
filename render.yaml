@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: smartpaydoc
+    env: docker
+    plan: free
+    region: oregon
+    buildCommand: ./build.sh
+    startCommand: ./start.sh
+    envVars:
+      - key: PYTHONUNBUFFERED
+        value: "1"
+      - key: PYTHONPATH
+        value: "/app"
+      - key: PORT
+        value: "10000"
+      - key: CACHE_EMBEDDINGS
+        value: "true"
+      - key: CACHE_DIRECTORY
+        value: "/app/cache"
+    envFromFile: ./.env
+    healthCheckPath: /
+    autoDeploy: true

@@ -19,6 +19,44 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+.python-version
+.pytest_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Render
+.render/
+
+# Local development
+.cache/
+.venv/
+venv/
+ENV/
+
+# Logs
+*.log
+
+# Local development
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
 
 # Environment variables
 .env
