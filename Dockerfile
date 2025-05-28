@@ -17,16 +17,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
-# Install minimal dependencies first
-COPY requirements-minimal.txt .
-RUN pip install --upgrade pip && \
-    pip install --no-cache-dir -r requirements-minimal.txt
-
-# Copy and install full requirements if they exist
+# Install Python dependencies
 COPY requirements.txt .
-RUN if [ -f "requirements.txt" ]; then \
-        pip install --no-cache-dir -r requirements.txt; \
-    fi
+RUN pip install --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
 
 # Runtime stage
 FROM python:3.9-slim
