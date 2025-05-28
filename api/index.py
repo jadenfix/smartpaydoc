@@ -4,7 +4,7 @@ import logging
 from pathlib import Path
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 try:
@@ -15,8 +15,17 @@ try:
     
     logger.info(f"Python path: {sys.path}")
     
+    # Ensure required environment variables are set
+    required_env_vars = ['ANTHROPIC_API_KEY']
+    for var in required_env_vars:
+        if not os.getenv(var):
+            logger.error(f"Missing required environment variable: {var}")
+    
     # Import the FastAPI app after updating the path
+    logger.info("Importing FastAPI application...")
     from web.main import app
+    
+    logger.info("FastAPI application imported successfully")
     
     # Vercel requires a callable named 'app' for Python serverless functions
     app = app
