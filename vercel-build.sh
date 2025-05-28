@@ -29,6 +29,7 @@ pip install \
     sentence-transformers==2.2.2 \
     anthropic==0.7.5 \
     aiohttp==3.8.4 \
+    aiofiles==23.2.1 \
     beautifulsoup4==4.11.1 \
     --target=./python \
     --no-cache-dir \
@@ -49,6 +50,7 @@ scikit-learn==1.0.2
 sentence-transformers==2.2.2
 anthropic==0.7.5
 aiohttp==3.8.4
+aiofiles==23.2.1
 beautifulsoup4==4.11.1
 EOL
 
