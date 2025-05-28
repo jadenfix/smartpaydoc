@@ -1,8 +1,18 @@
 {
   "version": 2,
   "builds": [
-    { "src": "web/main.py", "use": "@vercel/python" },
-    { "src": "web/static/**", "use": "@vercel/static" }
+    { 
+      "src": "web/main.py", 
+      "use": "@vercel/python",
+      "config": { 
+        "maxLambdaSize": "15mb",
+        "runtime": "python3.9"
+      }
+    },
+    { 
+      "src": "web/static/**", 
+      "use": "@vercel/static" 
+    }
   ],
   "routes": [
     { "src": "/static/(.*)", "dest": "/web/static/$1" },
@@ -10,13 +20,7 @@
     { "src": "/", "dest": "/web/main.py" },
     { "src": "/(.*)", "dest": "/web/main.py" }
   ],
-  "buildCommand": "./vercel-build.sh",
-  "outputDirectory": ".",
   "env": {
     "PYTHONPATH": "/var/task:/var/task/web:/var/task/api"
-  },
-  "rewrites": [
-    { "source": "/api/(.*)", "destination": "/web/main.py" },
-    { "source": "/(.*)", "destination": "/web/main.py" }
-  ]
+  }
 }
