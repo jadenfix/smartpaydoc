@@ -4,8 +4,8 @@ services:
     env: docker
     plan: free
     region: oregon
-    buildCommand: ./build.sh
-    startCommand: ./start.sh
+    buildCommand: chmod +x ./build.sh && ./build.sh
+    startCommand: chmod +x ./start.sh && ./start.sh
     envVars:
       - key: PYTHONUNBUFFERED
         value: "1"
@@ -17,6 +17,11 @@ services:
         value: "true"
       - key: CACHE_DIRECTORY
         value: "/app/cache"
-    envFromFile: ./.env
-    healthCheckPath: /
+      - key: PYTHON_VERSION
+        value: "3.9"
+    envFromFile:
+      - .env
+    healthCheckPath: /health
     autoDeploy: true
+    dockerfilePath: ./Dockerfile
+    numInstances: 1
