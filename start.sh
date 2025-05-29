@@ -13,7 +13,7 @@ echo "PORT: $PORT"
 echo "PYTHONPATH: $PYTHONPATH"
 
 # Run the FastAPI application
-exec uvicorn web.main:app \
+exec uvicorn web_app:app \
     --host 0.0.0.0 \
     --port $PORT \
     --proxy-headers \

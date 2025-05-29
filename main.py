@@ -18,7 +18,9 @@ from dotenv import load_dotenv
 # Debug print function
 def debug_print(*args, **kwargs):
     """Print debug information to stderr"""
-    print("\n[DEBUG]", *args, file=sys.stderr, **kwargs)
+    # Remove exc_info from kwargs if present (not supported by print)
+    kwargs.pop('exc_info', None)
+    print("\n[DEBUG]", *args, file=sys.stderr)
 
 # Print Python version and path for debugging
 debug_print(f"Python {sys.version}")
@@ -54,20 +56,18 @@ from error_helper import StripeErrorHelper
 app = typer.Typer(help="🚀 SmartPayDoc: Your AI Stripe Integration Assistant")
 console = Console()
 
-# Initialize components with error handling
+# Initialize components (no async initialization here - it will be done in the web app)
 try:
     rag = StripeRAGEngine()
     codegen = StripeCodeGenerator()
     error_helper = StripeErrorHelper()
-    
-    # Initialize the RAG engine
-    debug_print("Initializing RAG engine...")
-    asyncio.run(rag.initialize())
-    debug_print("RAG engine initialized successfully")
+    debug_print("Components initialized (async initialization will happen in web app)")
     
 except Exception as e:
-    console.print(f"❌ Error initializing components: {e}", style="red")
-    debug_print(f"Initialization error: {e}", exc_info=True)
+    error_msg = f"❌ Error initializing components: {e}"
+    console.print(error_msg, style="red")
+    debug_print(error_msg)
+    debug_print(f"Error details: {str(e)}")
     raise
 
 @app.command()

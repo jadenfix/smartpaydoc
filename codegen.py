@@ -251,62 +251,147 @@ app.listen(PORT, () => {
     
     async def _generate_from_scratch(self, task: str, language: str = "python", framework: str = "flask") -> str:
         """Generate code from scratch using the LLM"""
-        prompt = f"""You are a Stripe integration expert. Generate {language} code for the following task using the {framework} framework.
+        system_prompt = f"""You are a Stripe integration expert. Generate clean, secure, and well-documented code that follows best practices for Stripe integration.
 
-Task: {task}
+Instructions:
+1. Generate {language} code using the {framework} framework
+2. Include all necessary imports and setup code
+3. Follow the language and framework's best practices
+4. Add appropriate error handling
+5. Include comments to explain key parts of the code
+6. Return ONLY the code block without any additional explanation or markdown formatting"""
+        
+        user_message = f"""Generate code for the following task:
+        
+{task}
 
-Please generate clean, secure, and well-documented code that follows best practices for Stripe integration. Include all necessary imports and setup code.
-
-Return only the code block without any additional explanation or markdown formatting."""
+Please provide only the code without any additional explanations or markdown formatting."""
         
         try:
-            # Use the Anthropic client to generate code (updated for Anthropic SDK v0.7.5)
+            # Use the Messages API
             message = await self.client.messages.create(
                 model=self.model,
                 max_tokens=4000,
                 temperature=0.3,
-                system="You are a helpful assistant that generates code for Stripe integrations.",
+                system=system_prompt,
                 messages=[
-                    {"role": "user", "content": prompt}
+                    {"role": "user", "content": user_message}
                 ]
             )
             
-            # Extract the code from the response
-            generated_code = message.content[0].text
-            return self._extract_code_from_markdown(generated_code) or generated_code
+            # Extract the code from the message content
+            if message and hasattr(message, 'content'):
+                response_text = ""
+                for content_block in message.content:
+                    if hasattr(content_block, 'text'):
+                        response_text += content_block.text
+                
+                # Clean up and extract code
+                generated_code = response_text.strip()
+                return self._extract_code_from_markdown(generated_code) or generated_code
+                
+            return ""  # Return empty string if no code was generated
             
         except Exception as e:
             logger.error(f"Error generating code from scratch: {e}")
             raise Exception(f"Failed to generate code: {e}")
     
+    async def _generate_from_context(self, task: str, context: str, language: str = "python", framework: str = "flask") -> str:
+        """Generate code using the provided context"""
+        system_prompt = f"""You are a Stripe integration expert. Using the provided context, generate clean, secure, and well-documented code that follows best practices for Stripe integration.
+
+Instructions:
+1. Generate {language} code using the {framework} framework
+2. Use the provided context to inform your implementation
+3. Include all necessary imports and setup code
+4. Follow the language and framework's best practices
+5. Add appropriate error handling
+6. Include comments to explain key parts of the code
+7. Return ONLY the code block without any additional explanation or markdown formatting"""
+        
+        user_message = f"""Context:
+{context}
+
+Task:
+{task}
+
+Please provide only the code without any additional explanations or markdown formatting."""
+        
+        try:
+            # Use the Messages API
+            message = await self.client.messages.create(
+                model=self.model,
+                max_tokens=4000,
+                temperature=0.2,  # Slightly lower temperature for more deterministic output with context
+                system=system_prompt,
+                messages=[
+                    {"role": "user", "content": user_message}
+                ]
+            )
+            
+            # Extract the code from the message content
+            if message and hasattr(message, 'content'):
+                response_text = ""
+                for content_block in message.content:
+                    if hasattr(content_block, 'text'):
+                        response_text += content_block.text
+                
+                # Clean up and extract code
+                generated_code = response_text.strip()
+                return self._extract_code_from_markdown(generated_code) or generated_code
+                
+            return ""  # Return empty string if no code was generated
+            
+        except Exception as e:
+            logger.error(f"Error enhancing template: {e}")
+            return base_code
+    
     async def _enhance_template(self, base_code: str, task: str, language: str, framework: str) -> str:
         """Enhance a base template based on specific requirements"""
-        prompt = f"""You are a Stripe integration expert. Enhance this {language} {framework} code template based on the user's specific requirements.
+        system_prompt = f"""You are a Stripe integration expert. Your task is to enhance code templates based on specific requirements while maintaining code quality and best practices.
 
-Base template:
+Instructions:
+1. Keep the existing functionality intact
+2. Add only the necessary changes to implement the task
+3. Maintain code quality and best practices for {language} and {framework}
+4. Include proper error handling
+5. Add appropriate comments
+6. Return ONLY the complete enhanced code without any additional explanation or markdown formatting"""
+        
+        user_message = f"""Current template:
 ```{language}
 {base_code}
 ```
 
-Task: {task}
+Task to implement:
+{task}
 
-Please enhance this code to better fit the task while maintaining security and best practices.
-"""
+Please provide only the enhanced code without any additional explanations or markdown formatting."""
         
         try:
-            # Use the Anthropic client to generate enhanced code
-            response = await self.client.messages.create(
+            # Use the Messages API
+            message = await self.client.messages.create(
                 model=self.model,
-                max_tokens=2000,
+                max_tokens=4000,
                 temperature=0.3,
+                system=system_prompt,
                 messages=[
-                    {"role": "user", "content": prompt}
+                    {"role": "user", "content": user_message}
                 ]
             )
             
-            # Extract the enhanced code from the response
-            enhanced_code = response.content[0].text
-            return self._extract_code_from_markdown(enhanced_code) or base_code
+            # Extract the enhanced code from the message content
+            if message and hasattr(message, 'content'):
+                response_text = ""
+                for content_block in message.content:
+                    if hasattr(content_block, 'text'):
+                        response_text += content_block.text
+                
+                # Clean up and extract code
+                enhanced_code = response_text.strip()
+                return self._extract_code_from_markdown(enhanced_code) or enhanced_code
+                
+            return base_code  # Return original code if enhancement fails
             
         except Exception as e:
             logger.error(f"Error enhancing template: {e}")

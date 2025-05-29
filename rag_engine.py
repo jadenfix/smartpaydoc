@@ -31,10 +31,14 @@ class StripeDocument:
 
 class StripeRAGEngine:
     def __init__(self):
-        self.client = AsyncAnthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+        api_key = os.getenv("ANTHROPIC_API_KEY")
+        if not api_key:
+            raise ValueError("ANTHROPIC_API_KEY environment variable is not set")
+        self.client = AsyncAnthropic(api_key=api_key)
         self.documents: List[StripeDocument] = []
         self.embeddings_cache = "stripe_embeddings.pkl"
         self.docs_cache = "stripe_docs.json"
+        self.model = os.getenv("ANTHROPIC_MODEL", "claude-3-opus-20240229")
         
     async def initialize(self):
         """Initialize the RAG engine with Stripe documentation"""
@@ -253,14 +257,9 @@ HTTP Status Codes: 200 (OK), 400 (Bad Request), 401 (Unauthorized), 402 (Request
                 text = doc.content[:8192]
                 
                 # Get embeddings from Anthropic
-                message = await self.client.messages.create(
-                    model=os.getenv("ANTHROPIC_MODEL", "claude-3-opus-20240229"),
-                    max_tokens=1,  # We're just using this to get embeddings
-                    system="You are a helpful assistant that processes text for embeddings.",
-                    messages=[
-                        {"role": "user", "content": text}
-                    ]
-                )
+                # Note: Anthropic doesn't provide direct embeddings, so we'll use a simple approach
+                # In production, consider using a dedicated embedding model
+                pass
                 
                 # For now, we'll use a simple embedding approach since Anthropic doesn't provide direct embeddings
                 # In a production environment, you might want to use a dedicated embedding model
@@ -373,21 +372,57 @@ HTTP Status Codes: 200 (OK), 400 (Bad Request), 401 (Unauthorized), 402 (Request
         
         try:
             print("[DEBUG] Calling Anthropic API...")
+            
+            # Create a system message with instructions
+            system_prompt = """You are a Stripe API expert. Provide clear, beginner-friendly explanations about Stripe concepts.
+            
+Your responses should:
+1. Start with a simple explanation of the concept
+2. Explain when and why to use it
+3. Provide a high-level overview of how it works
+4. Include key parameters or considerations
+5. End with a brief pseudocode example
+6. Mention the 'Generate Code' tab for implementation
+
+Keep the tone friendly and approachable."""
+
+            # Create the user message
+            user_message = f"Please explain: {question}"
+            
+            # Call the Messages API
             message = await self.client.messages.create(
-                model=os.getenv("ANTHROPIC_MODEL", "claude-3-opus-20240229"),
+                model=self.model,
                 max_tokens=2000,
                 temperature=0.3,
-                system="You are a helpful assistant that answers questions about Stripe API.",
+                system=system_prompt,
                 messages=[
-                    {"role": "user", "content": prompt}
+                    {"role": "user", "content": user_message}
                 ]
             )
-            print("[DEBUG] Received response from Anthropic")
             
-            # Ensure we have a response and return it
-            if message and hasattr(message, 'content') and message.content:
-                return message.content[0].text
-            return "I'm sorry, I couldn't generate a response. Please try again."
+            print("[DEBUG] Received response from Anthropic Messages API")
+            
+            if message and hasattr(message, 'content'):
+                # Extract the response text from the message content
+                response_text = ""
+                for content_block in message.content:
+                    if hasattr(content_block, 'text'):
+                        response_text += content_block.text
+                
+                # Add a friendly footer with a call-to-action
+                footer = """
+
+---
+
+### Ready to implement this in your code?
+
+Head over to the 'Generate Code' tab to get a complete, production-ready implementation in your preferred language and framework. You can customize the code to match your specific needs!
+
+Need help with something else? Just ask! 😊"""
+                
+                return response_text.strip() + footer
+                
+            return "I'm sorry, I couldn't generate a response. Please try again or rephrase your question."
                 
         except Exception as e:
             error_msg = f"❌ Error generating response: {e}"

@@ -1,15 +1,20 @@
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi import FastAPI, Request, Depends
 from pydantic import BaseModel
-from typing import Optional, Dict, Any
-import subprocess
+from typing import Optional, Dict, Any, List
 import logging
 import os
 import sys
+import asyncio
 import importlib.util
+from contextlib import asynccontextmanager
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 logger = logging.getLogger(__name__)
 
 def import_from_path(module_name, file_path):
@@ -19,21 +24,47 @@ def import_from_path(module_name, file_path):
     spec.loader.exec_module(module)
     return module
 
-# Import the main module to access its functions
-try:
-    main_module = import_from_path('main', 'main.py')
-    rag = main_module.rag
-    codegen = main_module.codegen
-    error_helper = main_module.error_helper
-except Exception as e:
-    logger.error(f"Failed to import main module: {e}")
-    rag = None
-    codegen = None
-    error_helper = None
+# Global instances
+rag = None
+codegen = None
+error_helper = None
 
-app = FastAPI(title="SmartPayDoc API",
-             description="Web interface for SmartPayDoc - Stripe API Documentation Assistant",
-             version="1.0.0")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup: Initialize components
+    global rag, codegen, error_helper
+    
+    try:
+        # Import modules
+        main_module = import_from_path('main', 'main.py')
+        rag = main_module.rag
+        codegen = main_module.codegen
+        error_helper = main_module.error_helper
+        
+        # Initialize RAG if available
+        if hasattr(rag, 'initialize'):
+            logger.info("Initializing RAG engine...")
+            await rag.initialize()
+            logger.info("RAG engine initialized successfully")
+            
+    except Exception as e:
+        logger.error(f"Failed to initialize components: {e}", exc_info=True)
+        rag = None
+        codegen = None
+        error_helper = None
+    
+    yield  # This is where the application runs
+    
+    # Cleanup (if needed)
+    logger.info("Shutting down...")
+
+# Create FastAPI app with lifespan
+app = FastAPI(
+    title="SmartPayDoc API",
+    description="Web interface for SmartPayDoc - Stripe API Documentation Assistant",
+    version="1.0.0",
+    lifespan=lifespan
+)
 
 # Enable CORS
 app.add_middleware(
@@ -66,24 +97,27 @@ async def health_check():
 async def ask_question(request: AskRequest):
     """Ask a question about Stripe API"""
     if not rag:
-        raise HTTPException(status_code=500, detail="RAG engine not initialized")
+        raise HTTPException(
+            status_code=503, 
+            detail="RAG engine not initialized. Please try again in a moment."
+        )
     
     try:
-        # Call the RAG engine directly instead of using subprocess
-        import asyncio
-        from rag_engine import StripeRAGEngine  # Import the RAG engine directly
+        # Use the global rag instance that was initialized at startup
+        response = await rag.ask(request.question, request.language)
         
-        # Create a new instance of the RAG engine
-        rag_engine = StripeRAGEngine()
-        await rag_engine.initialize()  # Make sure to await the async initialize
-        
-        # Call the query method directly
-        response = await rag_engine.query(request.question, request.language)
-        
-        return {"response": response}
+        # Return as plain text with proper content type
+        from fastapi.responses import Response
+        return Response(
+            content=response,
+            media_type="text/plain; charset=utf-8"
+        )
     except Exception as e:
         logger.error(f"Error in ask_question: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Error processing your question: {str(e)}")
+        raise HTTPException(
+            status_code=500, 
+            detail=f"Error processing your question: {str(e)}"
+        )
 
 
 
@@ -91,25 +125,56 @@ async def ask_question(request: AskRequest):
 async def generate_code(request: GenerateRequest):
     """Generate boilerplate code"""
     if not codegen:
-        raise HTTPException(status_code=500, detail="Code generator not initialized")
+        raise HTTPException(
+            status_code=503, 
+            detail="Code generator not initialized. Please try again in a moment."
+        )
     
     try:
-        import asyncio
-        from codegen import StripeCodeGenerator  # Import the code generator directly
-        
-        # Create a new instance of the code generator
-        code_generator = StripeCodeGenerator()
-        
-        # Call the generate_code method directly
-        code = await code_generator.generate_code(request.task, request.language, request.framework)
+        # Use the global codegen instance that was initialized at startup
+        code = await codegen.generate_code(
+            request.task, 
+            request.language, 
+            request.framework
+        )
         
         if not code:
-            raise HTTPException(status_code=500, detail="No code was generated")
+            raise HTTPException(
+                status_code=500, 
+                detail="No code was generated. Please try a different query."
+            )
+        
+        # Format the response with Markdown code blocks for better readability
+        formatted_response = f"""
+Here's your generated code for: {request.task}
+
+```{request.language}
+{code}
+```
+
+You can copy this code and use it in your project. Make sure to:
+1. Replace any placeholder values (like API keys)
+2. Add your error handling logic
+3. Test thoroughly before deploying to production
+
+Need help with something else? Just ask! 😊"""
             
-        return {"code": code}
+        # Return as plain text with proper content type
+        from fastapi.responses import Response
+        return Response(
+            content=formatted_response,
+            media_type="text/plain; charset=utf-8"
+        )
+        
+    except HTTPException:
+        raise  # Re-raise HTTP exceptions as-is
+        
     except Exception as e:
         logger.error(f"Error in generate_code: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Error generating code: {str(e)}")
+        raise HTTPException(
+            status_code=500, 
+            detail=f"Error generating code: {str(e)}"
+        )
 
 
 @app.post("/api/debug")
