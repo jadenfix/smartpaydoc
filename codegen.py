@@ -260,18 +260,19 @@ Please generate clean, secure, and well-documented code that follows best practi
 Return only the code block without any additional explanation or markdown formatting."""
         
         try:
-            # Use the Anthropic client to generate code
-            response = await self.client.messages.create(
+            # Use the Anthropic client to generate code (updated for Anthropic SDK v0.7.5)
+            message = await self.client.messages.create(
                 model=self.model,
                 max_tokens=4000,
                 temperature=0.3,
+                system="You are a helpful assistant that generates code for Stripe integrations.",
                 messages=[
                     {"role": "user", "content": prompt}
                 ]
             )
             
             # Extract the code from the response
-            generated_code = response.content[0].text
+            generated_code = message.content[0].text
             return self._extract_code_from_markdown(generated_code) or generated_code
             
         except Exception as e:
