@@ -28,9 +28,10 @@ click==8.1.3
 python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
 
-# HTTP libs
+# HTTP & HTML parsing
 requests==2.31.0
 aiohttp==3.9.0
+beautifulsoup4==4.12.2
 h11==0.14.0
 
 # Payments
