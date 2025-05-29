@@ -6,7 +6,8 @@ Handles document ingestion, embedding, and retrieval
 import os
 import json
 import asyncio
-from typing import List, Dict, Any
+import sys
+from typing import List, Dict, Any, Optional
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
 import pickle
@@ -14,9 +15,10 @@ from dataclasses import dataclass
 from pathlib import Path
 import aiohttp
 import re
+import traceback
 from bs4 import BeautifulSoup
 
-# Use Anthropic instead of OpenAI
+# Use Anthropic
 from anthropic import AsyncAnthropic
 
 @dataclass
@@ -251,9 +253,10 @@ HTTP Status Codes: 200 (OK), 400 (Bad Request), 401 (Unauthorized), 402 (Request
                 text = doc.content[:8192]
                 
                 # Get embeddings from Anthropic
-                response = await self.client.messages.create(
+                message = await self.client.messages.create(
                     model=os.getenv("ANTHROPIC_MODEL", "claude-3-opus-20240229"),
                     max_tokens=1,  # We're just using this to get embeddings
+                    system="You are a helpful assistant that processes text for embeddings.",
                     messages=[
                         {"role": "user", "content": text}
                     ]
@@ -370,10 +373,11 @@ HTTP Status Codes: 200 (OK), 400 (Bad Request), 401 (Unauthorized), 402 (Request
         
         try:
             print("[DEBUG] Calling Anthropic API...")
-            response = await self.client.messages.create(
+            message = await self.client.messages.create(
                 model=os.getenv("ANTHROPIC_MODEL", "claude-3-opus-20240229"),
                 max_tokens=2000,
                 temperature=0.3,
+                system="You are a helpful assistant that answers questions about Stripe API.",
                 messages=[
                     {"role": "user", "content": prompt}
                 ]
@@ -381,15 +385,14 @@ HTTP Status Codes: 200 (OK), 400 (Bad Request), 401 (Unauthorized), 402 (Request
             print("[DEBUG] Received response from Anthropic")
             
             # Ensure we have a response and return it
-            if response and hasattr(response, 'content') and response.content:
-                return response.content[0].text
-            else:
-                return "I'm sorry, I couldn't generate a response. Please try again."
+            if message and hasattr(message, 'content') and message.content:
+                return message.content[0].text
+            return "I'm sorry, I couldn't generate a response. Please try again."
                 
         except Exception as e:
-            print(f"❌ Error generating response: {e}", file=sys.stderr)
+            error_msg = f"❌ Error generating response: {e}"
+            print(error_msg, file=sys.stderr)
             print(f"[DEBUG] Error details: {type(e).__name__}: {str(e)}", file=sys.stderr)
-            import traceback
             traceback.print_exc()
             return f"I'm sorry, I encountered an error while generating a response: {str(e)}"
             
