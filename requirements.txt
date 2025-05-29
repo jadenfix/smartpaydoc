@@ -5,7 +5,7 @@ pydantic==2.3.0
 anyio==3.7.1
 
 # LLMs
-anthropic==0.7.5
+anthropic==0.21.0
 # ASGI server
 uvicorn[standard]==0.24.0
 

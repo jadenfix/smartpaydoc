@@ -20,6 +20,7 @@ from bs4 import BeautifulSoup
 
 # Use Anthropic
 from anthropic import AsyncAnthropic
+from anthropic.types import MessageParam
 
 @dataclass
 class StripeDocument:
@@ -373,9 +374,9 @@ HTTP Status Codes: 200 (OK), 400 (Bad Request), 401 (Unauthorized), 402 (Request
         try:
             print("[DEBUG] Calling Anthropic API...")
             
-            # Create a system message with instructions
+            # Create system and user messages
             system_prompt = """You are a Stripe API expert. Provide clear, beginner-friendly explanations about Stripe concepts.
-            
+        
 Your responses should:
 1. Start with a simple explanation of the concept
 2. Explain when and why to use it
@@ -386,8 +387,10 @@ Your responses should:
 
 Keep the tone friendly and approachable."""
 
-            # Create the user message
-            user_message = f"Please explain: {question}"
+            # Create message parameters
+            messages = [
+                {"role": "user", "content": question}
+            ]
             
             # Call the Messages API
             message = await self.client.messages.create(
@@ -395,9 +398,7 @@ Keep the tone friendly and approachable."""
                 max_tokens=2000,
                 temperature=0.3,
                 system=system_prompt,
-                messages=[
-                    {"role": "user", "content": user_message}
-                ]
+                messages=messages
             )
             
             print("[DEBUG] Received response from Anthropic Messages API")

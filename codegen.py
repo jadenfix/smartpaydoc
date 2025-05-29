@@ -1,12 +1,15 @@
 """
 Stripe Code Generator
-Generates boilerplate code for common Stripe integration patterns using Anthropic
+Generates boilerplate code for common Stripe integration patterns using Anthropic Claude
 """
-
 import os
+import json
 import logging
-from typing import Dict, Any, List
-import anthropic
+import re
+from typing import Dict, List, Optional, Any
+from pathlib import Path
+from anthropic import AsyncAnthropic
+from anthropic.types import MessageParam
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -17,7 +20,7 @@ class StripeCodeGenerator:
         if not api_key:
             raise ValueError("ANTHROPIC_API_KEY environment variable is not set")
             
-        self.client = anthropic.AsyncAnthropic(api_key=api_key)
+        self.client = AsyncAnthropic(api_key=api_key)
         self.templates = self._load_templates()
         self.model = os.getenv("ANTHROPIC_MODEL", "claude-3-opus-20240229")
     
@@ -261,11 +264,10 @@ Instructions:
 5. Include comments to explain key parts of the code
 6. Return ONLY the code block without any additional explanation or markdown formatting"""
         
-        user_message = f"""Generate code for the following task:
-        
-{task}
-
-Please provide only the code without any additional explanations or markdown formatting."""
+        # Create message parameters
+        messages = [
+            {"role": "user", "content": f"Generate code for: {task}"}
+        ]
         
         try:
             # Use the Messages API
@@ -274,9 +276,7 @@ Please provide only the code without any additional explanations or markdown for
                 max_tokens=4000,
                 temperature=0.3,
                 system=system_prompt,
-                messages=[
-                    {"role": "user", "content": user_message}
-                ]
+                messages=messages
             )
             
             # Extract the code from the message content
