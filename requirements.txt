@@ -30,6 +30,7 @@ passlib[bcrypt]==1.7.4
 
 # HTTP libs
 requests==2.31.0
+aiohttp==3.9.0
 h11==0.14.0
 
 # Payments
