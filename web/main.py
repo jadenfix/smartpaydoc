@@ -76,21 +76,21 @@ def extract_code_blocks(text: str) -> list:
     return code_blocks
 
 def format_response(response_text: str) -> str:
-    """Format the response to ensure clean, structured output with copy-pastable code blocks."""
+    """Format the response to ensure natural language output with proper formatting."""
     # Clean up the response text first
     cleaned_text = clean_response_text(response_text)
     
-    # Extract code blocks
-    code_blocks = extract_code_blocks(cleaned_text)
+    # Remove any markdown code block formatting
+    cleaned_text = cleaned_text.replace('```python', '').replace('```', '').strip()
     
-    # If we found code blocks, return them with markdown formatting
-    if code_blocks:
-        formatted_blocks = []
-        for i, code in enumerate(code_blocks, 1):
-            formatted_blocks.append(f"```python\n{code}\n```")
-        return '\n\n'.join(formatted_blocks)
+    # Ensure the response is in natural language format
+    if '```' in cleaned_text:
+        # If there are still code blocks, format them as inline code
+        cleaned_text = cleaned_text.replace('`', '`')
     
-    # If no code blocks, return the cleaned text
+    # Ensure proper paragraph spacing
+    cleaned_text = '\n\n'.join(p.strip() for p in cleaned_text.split('\n\n') if p.strip())
+    
     return cleaned_text
 
 # Import RAG engine with error handling
