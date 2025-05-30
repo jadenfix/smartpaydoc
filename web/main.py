@@ -140,44 +140,53 @@ async def startup_event():
 
 @app.post("/api/ask")
 async def ask_question(question: str = Form(...)):
-    if not RAG_AVAILABLE or not rag:
-        error_msg = "RAG functionality is currently unavailable. Please check server logs for details."
-        logger.error(error_msg)
-        return JSONResponse(
-            status_code=503,
-            content={"error": error_msg}
-        )
-    
-    if not question or not question.strip():
-        return JSONResponse(
-            status_code=400,
-            content={"error": "Question cannot be empty"}
-        )
-    
     async def generate():
         try:
+            if not RAG_AVAILABLE or not rag:
+                error_msg = "RAG functionality is currently unavailable. Please check server logs for details."
+                logger.error(error_msg)
+                yield f"data: {json.dumps({'error': error_msg})}\n\n"
+                return
+            
+            if not question or not question.strip():
+                yield f"data: {json.dumps({'error': 'Question cannot be empty'})}\n\n"
+                return
+            
             logger.info(f"Processing question: {question[:100]}...")
             
             # Stream the response from RAG
             response = ""
-            async for chunk in rag.stream_ask(question):
-                if chunk:
-                    # Format the chunk and send it
-                    formatted_chunk = format_response(chunk)
-                    yield f"data: {json.dumps({'response': formatted_chunk})}\n\n"
-                    response += chunk
-                    
-                # Small delay to prevent overwhelming the client
-                await asyncio.sleep(0.01)
+            try:
+                async for chunk in rag.stream_ask(question):
+                    if chunk:
+                        # Format the chunk and send it
+                        formatted_chunk = format_response(chunk)
+                        yield f"data: {json.dumps({'response': formatted_chunk})}\n\n"
+                        response += chunk
+                        
+                    # Small delay to prevent overwhelming the client
+                    await asyncio.sleep(0.01)
                 
-            logger.info("Successfully streamed response")
-            
+                logger.info("Successfully streamed response")
+                
+            except Exception as e:
+                error_msg = f"Error generating response: {str(e)}"
+                logger.error(error_msg, exc_info=True)
+                yield f"data: {json.dumps({'error': error_msg})}\n\n"
+                
         except Exception as e:
-            error_msg = f"Error processing your question: {str(e)}"
+            error_msg = f"Internal server error: {str(e)}"
             logger.error(error_msg, exc_info=True)
-            yield f"data: {json.dumps({'error': error_msg})}\n\n"
+            yield f"data: {json.dumps({'error': 'An unexpected error occurred'})}\n\n"
     
-    return StreamingResponse(generate(), media_type="text/event-stream")
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={
+            'Cache-Control': 'no-cache',
+            'Connection': 'keep-alive',
+        }
+    )
 
 def clean_code_output(code_text: str) -> str:
     """Clean up the code output to ensure it's properly formatted."""

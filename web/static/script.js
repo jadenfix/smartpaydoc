@@ -45,11 +45,19 @@ if (askForm) {
             });
             
             if (!response.ok) {
-                throw new Error(`Error: ${response.status}`);
+                const errorData = await response.text();
+                let errorMessage = `Error: ${response.status}`;
+                try {
+                    const jsonError = JSON.parse(errorData);
+                    errorMessage = jsonError.error || errorMessage;
+                } catch (e) {
+                    errorMessage = errorData || errorMessage;
+                }
+                throw new Error(errorMessage);
             }
             
             if (!response.body) {
-                throw new Error('No response body');
+                throw new Error('No response body received');
             }
             
             // Process the streaming response
@@ -69,21 +77,33 @@ if (askForm) {
                 buffer = events.pop() || ''; // Save incomplete event for next iteration
                 
                 for (const event of events) {
-                    if (!event.startsWith('data: ')) continue;
-                    
                     try {
-                        const data = JSON.parse(event.slice(6)); // Remove 'data: ' prefix
-                        if (data.error) {
-                            throw new Error(data.error);
-                        }
-                        if (data.response) {
-                            // Append the new text to the response
-                            responseParagraph.innerHTML += data.response;
-                            // Scroll to the bottom
-                            responseParagraph.scrollIntoView({ behavior: 'smooth', block: 'end' });
+                        if (!event.startsWith('data: ')) continue;
+                        
+                        const data = JSON.parse(event.slice(6).trim()); // Remove 'data: ' prefix and trim
+                        
+                        if (data && typeof data === 'object') {
+                            if (data.error) {
+                                throw new Error(data.error);
+                            }
+                            if (data.response) {
+                                // Sanitize and append the new text to the response
+                                const sanitized = data.response
+                                    .replace(/&/g, '&amp;')
+                                    .replace(/</g, '&lt;')
+                                    .replace(/>/g, '&gt;');
+                                
+                                // Only update the DOM if we have actual content
+                                if (sanitized.trim()) {
+                                    responseParagraph.innerHTML += sanitized;
+                                    // Scroll to the bottom
+                                    responseParagraph.scrollIntoView({ behavior: 'smooth', block: 'end' });
+                                }
+                            }
                         }
                     } catch (e) {
-                        console.error('Error parsing event:', e, 'Event:', event);
+                        console.error('Error processing event:', e);
+                        // Don't throw here, continue processing other events
                     }
                 }
             }
