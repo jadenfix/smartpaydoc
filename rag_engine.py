@@ -321,6 +321,66 @@ HTTP Status Codes: 200 (OK), 400 (Bad Request), 401 (Unauthorized), 402 (Request
                 doc.embedding = embeddings_data['embeddings'][i]
             self.documents.append(doc)
 
+    async def stream_ask(self, question: str, language: str = "python"):
+        """Stream the response from the RAG system with a question using Anthropic"""
+        print(f"\n[DEBUG] Starting streaming query for: {question}")
+        
+        # Generate embedding for the question
+        question_embedding = np.random.rand(1536)
+        
+        # Find most relevant documents (same as in ask method)
+        similarities = []
+        for doc in self.documents:
+            if doc.embedding is not None and len(doc.embedding) > 0:
+                try:
+                    # Calculate cosine similarity
+                    sim = cosine_similarity(
+                        [question_embedding],
+                        [doc.embedding]
+                    )[0][0]
+                    similarities.append((doc, sim))
+                except Exception as e:
+                    print(f"[DEBUG] Error calculating similarity: {e}")
+        
+        # Sort by similarity (highest first)
+        similarities.sort(key=lambda x: x[1], reverse=True)
+        
+        # Get top 3 most relevant documents
+        context_docs = [doc for doc, _ in similarities[:3]]
+        
+        # Prepare the context
+        context = "\n\n".join([f"Document: {doc.title}\nContent: {doc.content[:1000]}..." 
+                              for doc in context_docs])
+        
+        # System prompt
+        system_prompt = f"""You are a helpful assistant that provides clear, concise answers about the Stripe API.
+        Answer the user's question based on the following context. If you don't know the answer, say so.
+        
+        Context:
+        {context}
+        
+        Guidelines:
+        - Be concise and to the point
+        - Use natural language, not code blocks
+        - Format your response in markdown
+        - Keep responses under 500 words
+        """
+        
+        # Initialize the streaming response
+        stream = await self.client.messages.create(
+            model=self.model,
+            max_tokens=2000,
+            temperature=0.3,
+            system=system_prompt,
+            messages=[{"role": "user", "content": question}],
+            stream=True
+        )
+        
+        # Stream the response
+        async for chunk in stream:
+            if chunk.type == 'content_block_delta' and chunk.delta.text:
+                yield chunk.delta.text
+    
     async def ask(self, question: str, language: str = "python") -> str:
         """Query the RAG system with a question using Anthropic"""
         print(f"\n[DEBUG] Starting query for: {question}")

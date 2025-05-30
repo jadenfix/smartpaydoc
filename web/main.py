@@ -154,33 +154,30 @@ async def ask_question(question: str = Form(...)):
             content={"error": "Question cannot be empty"}
         )
     
-    try:
-        logger.info(f"Processing question: {question[:100]}...")
-        
-        # Get response from RAG
-        response = await rag.ask(question)
-        
-        if not response:
-            error_msg = "No response from RAG engine. Please try again."
-            logger.error(error_msg)
-            return JSONResponse(
-                status_code=500,
-                content={"error": error_msg}
-            )
-        
-        # Format the response
-        formatted_response = format_response(response)
-        logger.info("Successfully processed question")
-        
-        return {"response": formatted_response}
-        
-    except Exception as e:
-        error_msg = f"Error processing your question: {str(e)}"
-        logger.error(error_msg, exc_info=True)
-        return JSONResponse(
-            status_code=500,
-            content={"error": error_msg}
-        )
+    async def generate():
+        try:
+            logger.info(f"Processing question: {question[:100]}...")
+            
+            # Stream the response from RAG
+            response = ""
+            async for chunk in rag.stream_ask(question):
+                if chunk:
+                    # Format the chunk and send it
+                    formatted_chunk = format_response(chunk)
+                    yield f"data: {json.dumps({'response': formatted_chunk})}\n\n"
+                    response += chunk
+                    
+                # Small delay to prevent overwhelming the client
+                await asyncio.sleep(0.01)
+                
+            logger.info("Successfully streamed response")
+            
+        except Exception as e:
+            error_msg = f"Error processing your question: {str(e)}"
+            logger.error(error_msg, exc_info=True)
+            yield f"data: {json.dumps({'error': error_msg})}\n\n"
+    
+    return StreamingResponse(generate(), media_type="text/event-stream")
 
 def clean_code_output(code_text: str) -> str:
     """Clean up the code output to ensure it's properly formatted."""
