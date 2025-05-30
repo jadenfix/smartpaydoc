@@ -157,7 +157,6 @@ $ smartpaydoc debug "Your card was declined"
 
 ### Expected Output:
 
-```
 🔍 Error Analysis:
 
 Error Type: CardError
