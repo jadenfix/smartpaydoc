@@ -7,7 +7,7 @@ const codeOutput = document.getElementById('codeOutput');
 // Initialize clipboard.js for code copy functionality
 new ClipboardJS('.copy-btn');
 
-// Handle ask form submission
+// Handle ask form submission with streaming
 if (askForm) {
     askForm.addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -25,9 +25,15 @@ if (askForm) {
         submitBtn.disabled = true;
         
         // Clear previous results/errors
-        askResult.style.display = 'none';
+        askResult.innerHTML = '';
+        askResult.style.display = 'block';
         const errorElement = document.getElementById('askError');
         if (errorElement) errorElement.remove();
+        
+        // Create a new paragraph for the response
+        const responseParagraph = document.createElement('div');
+        responseParagraph.className = 'prose max-w-none';
+        askResult.appendChild(responseParagraph);
         
         try {
             const response = await fetch('/api/ask', {
@@ -42,20 +48,54 @@ if (askForm) {
                 throw new Error(`Error: ${response.status}`);
             }
             
-            const data = await response.json();
+            if (!response.body) {
+                throw new Error('No response body');
+            }
             
-            // Display the response
-            askResult.innerHTML = data.response;
-            askResult.style.display = 'block';
+            // Process the streaming response
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = '';
             
-            // Apply syntax highlighting to code blocks
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                
+                // Decode the chunk and process it
+                buffer += decoder.decode(value, { stream: true });
+                
+                // Process each complete event
+                const events = buffer.split('\n\n');
+                buffer = events.pop() || ''; // Save incomplete event for next iteration
+                
+                for (const event of events) {
+                    if (!event.startsWith('data: ')) continue;
+                    
+                    try {
+                        const data = JSON.parse(event.slice(6)); // Remove 'data: ' prefix
+                        if (data.error) {
+                            throw new Error(data.error);
+                        }
+                        if (data.response) {
+                            // Append the new text to the response
+                            responseParagraph.innerHTML += data.response;
+                            // Scroll to the bottom
+                            responseParagraph.scrollIntoView({ behavior: 'smooth', block: 'end' });
+                        }
+                    } catch (e) {
+                        console.error('Error parsing event:', e, 'Event:', event);
+                    }
+                }
+            }
+            
+            // Apply syntax highlighting to any code blocks
             document.querySelectorAll('pre code').forEach((block) => {
                 hljs.highlightBlock(block);
             });
             
         } catch (error) {
             console.error('Error:', error);
-            showError(askForm, 'Failed to get a response. Please try again.');
+            showError(askForm, error.message || 'Failed to get a response. Please try again.');
         } finally {
             // Reset button state
             btnText.textContent = 'Ask Question';
