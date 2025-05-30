@@ -140,32 +140,46 @@ async def startup_event():
 
 @app.post("/api/ask")
 async def ask_question(question: str = Form(...)):
-    async def generate():
-        try:
-            if not RAG_AVAILABLE or not rag:
-                error_msg = "RAG functionality is currently unavailable. Please check server logs for details."
-                logger.error(error_msg)
-                yield f"data: {json.dumps({'error': error_msg})}\n\n"
-                return
+    def format_error(message: str) -> str:
+        """Helper to format error messages as JSON"""
+        return json.dumps({"error": message})
+    
+    try:
+        # Validate input
+        if not question or not question.strip():
+            return JSONResponse(
+                status_code=400,
+                content={"error": "Question cannot be empty"}
+            )
             
-            if not question or not question.strip():
-                yield f"data: {json.dumps({'error': 'Question cannot be empty'})}\n\n"
-                return
-            
-            logger.info(f"Processing question: {question[:100]}...")
-            
-            # Stream the response from RAG
-            response = ""
+        if not RAG_AVAILABLE or not rag:
+            error_msg = "RAG functionality is currently unavailable. Please check server logs for details."
+            logger.error(error_msg)
+            return JSONResponse(
+                status_code=503,
+                content={"error": error_msg}
+            )
+        
+        logger.info(f"Processing question: {question[:100]}...")
+        
+        async def generate():
+            """Generator function to stream the response"""
             try:
+                # Stream the response from RAG
+                response = ""
                 async for chunk in rag.stream_ask(question):
                     if chunk:
-                        # Format the chunk and send it
-                        formatted_chunk = format_response(chunk)
-                        yield f"data: {json.dumps({'response': formatted_chunk})}\n\n"
-                        response += chunk
+                        try:
+                            # Format the chunk and send it
+                            formatted_chunk = format_response(chunk)
+                            yield f"data: {json.dumps({'response': formatted_chunk})}\n\n"
+                            response += chunk
+                        except Exception as e:
+                            logger.error(f"Error formatting chunk: {e}")
+                            continue
                         
-                    # Small delay to prevent overwhelming the client
-                    await asyncio.sleep(0.01)
+                        # Small delay to prevent overwhelming the client
+                        await asyncio.sleep(0.01)
                 
                 logger.info("Successfully streamed response")
                 
@@ -173,20 +187,24 @@ async def ask_question(question: str = Form(...)):
                 error_msg = f"Error generating response: {str(e)}"
                 logger.error(error_msg, exc_info=True)
                 yield f"data: {json.dumps({'error': error_msg})}\n\n"
-                
-        except Exception as e:
-            error_msg = f"Internal server error: {str(e)}"
-            logger.error(error_msg, exc_info=True)
-            yield f"data: {json.dumps({'error': 'An unexpected error occurred'})}\n\n"
-    
-    return StreamingResponse(
-        generate(),
-        media_type="text/event-stream",
-        headers={
-            'Cache-Control': 'no-cache',
-            'Connection': 'keep-alive',
-        }
-    )
+        
+        # Return the streaming response
+        return StreamingResponse(
+            generate(),
+            media_type="text/event-stream",
+            headers={
+                'Cache-Control': 'no-cache',
+                'Connection': 'keep-alive',
+            }
+        )
+        
+    except Exception as e:
+        error_msg = f"Internal server error: {str(e)}"
+        logger.error(error_msg, exc_info=True)
+        return JSONResponse(
+            status_code=500,
+            content={"error": "An unexpected error occurred. Please try again later."}
+        )
 
 def clean_code_output(code_text: str) -> str:
     """Clean up the code output to ensure it's properly formatted."""
