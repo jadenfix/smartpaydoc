@@ -66,13 +66,14 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Enable CORS
+# Enable CORS with specific settings
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization"],
+    expose_headers=["Content-Type"],
 )
 
 class AskRequest(BaseModel):
@@ -94,7 +95,7 @@ async def health_check():
     return {"status": "healthy"}
 
 @app.post("/api/ask")
-async def ask_question(request: AskRequest):
+async def ask_question(request: Request):
     """Ask a question about Stripe API"""
     if not rag:
         raise HTTPException(
@@ -103,15 +104,27 @@ async def ask_question(request: AskRequest):
         )
     
     try:
+        # Parse JSON body
+        data = await request.json()
+        question = data.get('question', '').strip()
+        language = data.get('language', 'python')
+        
+        if not question:
+            raise HTTPException(status_code=400, detail="Question is required")
+        
         # Use the global rag instance that was initialized at startup
-        response = await rag.ask(request.question, request.language)
+        response = await rag.ask(question, language)
         
         # Return as plain text with proper content type
-        from fastapi.responses import Response
-        return Response(
+        from fastapi.responses import PlainTextResponse
+        return PlainTextResponse(
             content=response,
             media_type="text/plain; charset=utf-8"
         )
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="Invalid JSON payload")
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error in ask_question: {str(e)}", exc_info=True)
         raise HTTPException(
