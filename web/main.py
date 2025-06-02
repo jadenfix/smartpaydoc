@@ -1,10 +1,12 @@
 from fastapi import FastAPI, Request, Form, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from fastapi.responses import HTMLResponse, FileResponse, JSONResponse
+from fastapi.responses import HTMLResponse, FileResponse, JSONResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 import os
 import sys
+import json
+import asyncio
 from pathlib import Path
 import logging
 
@@ -139,12 +141,16 @@ async def startup_event():
         rag = None
 
 @app.post("/api/ask")
-async def ask_question(question: str = Form(...)):
+async def ask_question(request: Request):
     def format_error(message: str) -> str:
         """Helper to format error messages as JSON"""
         return json.dumps({"error": message})
     
     try:
+        # Parse JSON request body
+        data = await request.json()
+        question = data.get("question")
+        
         # Validate input
         if not question or not question.strip():
             return JSONResponse(

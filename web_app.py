@@ -94,8 +94,10 @@ async def health_check():
     """Health check endpoint"""
     return {"status": "healthy"}
 
+from fastapi import FastAPI, HTTPException, Request, Depends, Body
+
 @app.post("/api/ask")
-async def ask_question(request: Request):
+async def ask_question(request_data: dict = Body(...)):
     """Ask a question about Stripe API"""
     if not rag:
         raise HTTPException(
@@ -104,10 +106,8 @@ async def ask_question(request: Request):
         )
     
     try:
-        # Parse JSON body
-        data = await request.json()
-        question = data.get('question', '').strip()
-        language = data.get('language', 'python')
+        question = request_data.get('question', '').strip()
+        language = request_data.get('language', 'python')
         
         if not question:
             raise HTTPException(status_code=400, detail="Question is required")
@@ -117,10 +117,18 @@ async def ask_question(request: Request):
         
         # Return as plain text with proper content type
         from fastapi.responses import PlainTextResponse
-        return PlainTextResponse(
+        response_obj = PlainTextResponse(
             content=response,
             media_type="text/plain; charset=utf-8"
         )
+        
+        # Add CORS headers
+        response_obj.headers["Access-Control-Allow-Origin"] = "*"
+        response_obj.headers["Access-Control-Allow-Methods"] = "POST, OPTIONS"
+        response_obj.headers["Access-Control-Allow-Headers"] = "Content-Type"
+        
+        return response_obj
+        
     except json.JSONDecodeError:
         raise HTTPException(status_code=400, detail="Invalid JSON payload")
     except HTTPException:
