@@ -1,54 +1,61 @@
-"""
-Stripe Error Helper and Webhook Analyzer
-Diagnoses common Stripe errors and analyzes webhook payloads using Anthropic
-"""
-
-import os
+"""Stripe error references and webhook inspection with real signature checks."""
 import json
-import re
-import logging
-from typing import Dict, Any, Optional, List
-import anthropic
-import hashlib
-import hmac
+import os
+import stripe
+from llm import create_client, response_text
 
-# Set up logging
-logger = logging.getLogger(__name__)
 
 class StripeErrorHelper:
-    def __init__(self):
-        """Initialize the StripeErrorHelper with Anthropic client."""
-        api_key = os.getenv("ANTHROPIC_API_KEY")
-        if not api_key:
-            raise ValueError("ANTHROPIC_API_KEY environment variable is not set")
-            
-        self.client = anthropic.AsyncAnthropic(api_key=api_key)
-        self.model = os.getenv("ANTHROPIC_MODEL", "claude-3-opus-20240229")
-        
-    async def diagnose_error(self, error_log: str, context: Optional[str] = None) -> str:
-        """Diagnose a Stripe error using Anthropic"""
+    def __init__(self, client=None):
+        self.client = client
+        self.model = os.getenv("ANTHROPIC_MODEL")
+        self.common_errors = {
+            "card_declined": "The issuer declined the card. Check the decline code; ask for another payment method or contact the issuer. Do not blindly retry.",
+            "authentication_required": "Customer authentication is required. Complete the payment authentication flow before retrying.",
+            "invalid_request_error": "Check required parameters and the API error field.",
+        }
+        self.webhook_events = {
+            "payment_intent.succeeded": "The PaymentIntent succeeded.",
+            "payment_intent.payment_failed": "The payment attempt failed; inspect last_payment_error.",
+            "invoice.payment_failed": "Invoice payment failed; inspect the invoice and subscription state.",
+            "customer.subscription.updated": "Subscription state changed.",
+            "charge.failed": "The charge failed.",
+        }
+
+    async def diagnose_error(self, error_log, context=None):
+        if not error_log.strip():
+            raise ValueError("Error log is required")
+        for code, explanation in self.common_errors.items():
+            if code in error_log:
+                return f"{code}: {explanation}"
+        if self.client is None:
+            self.client = create_client()
+        message = await self.client.messages.create(
+            model=self.model or os.getenv("ANTHROPIC_MODEL"), max_tokens=1000, temperature=0.3,
+            messages=[{"role": "user", "content": f"Explain this Stripe error and suggest a fix:\n{error_log}\nContext: {context or 'none'}"}])
+        return response_text(message)
+
+    def verify_webhook_signature(self, payload, signature_header, secret, tolerance=300):
+        if not signature_header or not secret:
+            return False
         try:
-            prompt = f"""You are a Stripe API expert. Analyze this error and provide a detailed explanation and solution.
-            
-Error:
-{error_log}
+            stripe.Webhook.construct_event(payload, signature_header, secret, tolerance=tolerance)
+            return True
+        except (ValueError, stripe.error.SignatureVerificationError):
+            return False
 
-Context: {context or 'No additional context provided'}
+    async def analyze_webhook(self, payload, verify_signature=False, signature=None, secret=None):
+        raw = payload.encode("utf-8") if isinstance(payload, str) else payload
+        if verify_signature and not self.verify_webhook_signature(raw, signature, secret or os.getenv("STRIPE_WEBHOOK_SECRET")):
+            raise ValueError("Webhook signature verification failed or required signature/secret is missing")
+        event = json.loads(raw)
+        if not isinstance(event, dict) or not isinstance(event.get("type"), str):
+            raise ValueError("Webhook payload must contain an event type")
+        state = "signature verified" if verify_signature else "unverified payload inspection"
+        summary = self.webhook_events.get(event["type"], "Unrecognized event; consult the API reference.")
+        return f"{event['type']} ({state})\n{summary}\n\n{json.dumps(event.get('data', {}), indent=2)}"
 
-Please provide:
-1. The likely cause of the error
-2. Step-by-step solution
-3. Code example to fix the issue (if applicable)"""
-            
-            response = await self.client.messages.create(
-                model=self.model,
-                max_tokens=1000,
-                temperature=0.3,
-                messages=[{"role": "user", "content": prompt}]
-            )
-            
-            return response.content[0].text
-            
-        except Exception as e:
-            logger.error(f"Error in LLM diagnosis: {e}")
-            return "I encountered an error while analyzing this issue. Please check the logs for more details."
+    def _format_error_diagnosis(self, diagnosis):
+        if not diagnosis:
+            return "No specific error information available"
+        return "\n".join(f"{key.replace('_', ' ').title()}: {value}" for key, value in diagnosis.items())

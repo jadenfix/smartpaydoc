@@ -135,6 +135,34 @@
             background-color: #f7f7f7;
             border-radius: 0.5rem;
         }
+        /* Long generated source scrolls inside its card, including on phones. */
+        .grid {
+            grid-template-columns: minmax(0, 1fr);
+        }
+        .grid > *, .form-row > *, .prose, .result-container, .code-block {
+            min-width: 0;
+            max-width: 100%;
+        }
+        pre {
+            max-width: 100%;
+            overflow-x: auto;
+        }
+        @media (min-width: 768px) {
+            .grid.grid-cols-2 {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+        @media (max-width: 767px) {
+            .main-content {
+                padding: 0.5rem;
+            }
+            .card {
+                padding: 1rem;
+            }
+            .form-container {
+                padding: 0.75rem;
+            }
+        }
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen">
@@ -262,13 +290,19 @@
          * Show a global error message
          * @param {string} message - The error message to display
          */
+        function escapeHtml(value) {
+            const element = document.createElement('div');
+            element.textContent = String(value);
+            return element.innerHTML;
+        }
+
         function showGlobalError(message) {
             const errorContainer = document.createElement('div');
             errorContainer.className = 'fixed top-4 right-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded';
             errorContainer.role = 'alert';
             errorContainer.innerHTML = `
                 <strong class="font-bold">Error: </strong>
-                <span class="block sm:inline">${message}</span>
+                <span class="block sm:inline">${escapeHtml(message)}</span>
             `;
             document.body.appendChild(errorContainer);
             
@@ -283,12 +317,12 @@
          */
         function initializeApp() {
             // Configure marked.js
-            marked.setOptions({
+            if (window.marked) marked.setOptions({
             highlight: function(code, lang) {
-                if (lang && hljs.getLanguage(lang)) {
+                if (lang && window.hljs && hljs.getLanguage(lang)) {
                     return hljs.highlight(lang, code).value;
                 }
-                return hljs.highlightAuto(code).value;
+                return window.hljs ? hljs.highlightAuto(code).value : code;
             },
             langPrefix: 'hljs language-',
             breaks: true,
@@ -297,11 +331,17 @@
 
         // Function to render markdown with code highlighting
         function renderMarkdown(markdown) {
+            // Optional CDN formatters must not disable the actual local workflow.
+            if (!window.marked || !window.DOMPurify) {
+                const pre = document.createElement('pre');
+                pre.textContent = String(markdown).replace(/^```[^\n]*\n/, '').replace(/\n```$/, '');
+                return pre.outerHTML;
+            }
             // First, sanitize the markdown to prevent XSS
-            const safeMarkdown = DOMPurify.sanitize(markdown);
+            const safeMarkdown = String(markdown);
             
             // Then render to HTML
-            const html = marked.parse(safeMarkdown);
+            const html = DOMPurify.sanitize(marked.parse(safeMarkdown));
             
             // Create a temporary container to parse the HTML
             const temp = document.createElement('div');
@@ -359,7 +399,7 @@
                 pre.className = block.className;
                 pre.textContent = code;
                 
-                hljs.highlightElement(pre);
+                if (window.hljs) hljs.highlightElement(pre);
                 
                 container.appendChild(header);
                 container.appendChild(pre);
@@ -439,7 +479,7 @@
                                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                                 </svg>
-                                <span class="error-text">Error: ${error.message || CONFIG.defaultError}</span>
+                                <span class="error-text">Error: ${escapeHtml(error.message || CONFIG.defaultError)}</span>
                             </div>
                         `;
                         answerDiv.style.display = 'block';
@@ -511,7 +551,7 @@
                         
                         // Highlight the code
                         document.querySelectorAll('pre code').forEach((block) => {
-                            hljs.highlightElement(block);
+                            if (window.hljs) hljs.highlightElement(block);
                         });
                     } else {
                         throw new Error('No code was generated');
@@ -527,7 +567,7 @@
                                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                                 </svg>
-                                <span class="error-text">Error: ${error.message || CONFIG.defaultError}</span>
+                                <span class="error-text">Error: ${escapeHtml(error.message || CONFIG.defaultError)}</span>
                             </div>
                         `;
                         generateResult.style.display = 'block';
