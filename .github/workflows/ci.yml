@@ -1,0 +1,30 @@
+name: SmartPayDoc workflow
+on: [push, pull_request]
+jobs:
+  workflow:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: ['3.11', '3.12']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+      - run: pip install -r requirements-dev.txt
+      - run: pip install --no-deps .
+      - run: python -m pytest tests -q --no-cov
+      - run: python scripts/smoke_workflow.py
+      - run: python -m smartpaydoc --help
+      - run: smartpaydoc generate 'subscription checkout'
+  browser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -r requirements-dev.txt playwright
+      - run: python -m playwright install --with-deps chromium
+      - run: python scripts/browser_smoke.py

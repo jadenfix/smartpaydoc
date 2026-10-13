@@ -1,7 +1,7 @@
 """
 End-to-end tests for the StripeRAGEngine.
 
-These tests require a valid OPENAI_API_KEY to be set in the environment.
+These tests require a valid ANTHROPIC_API_KEY to be set in the environment.
 """
 import os
 import pytest
@@ -9,10 +9,10 @@ import numpy as np
 from rag_engine import StripeRAGEngine
 
 # Skip these tests if no OpenAI API key is available
-pytestmark = pytest.mark.skipif(
-    not os.getenv("OPENAI_API_KEY"),
-    reason="OPENAI_API_KEY not set in environment"
-)
+pytestmark = [pytest.mark.live_provider, pytest.mark.skipif(
+    not (os.getenv("ANTHROPIC_API_KEY") and os.getenv("ANTHROPIC_MODEL") and os.getenv("SMARTPAYDOC_RUN_LIVE_TESTS") == "1"),
+    reason="Live provider tests require explicit opt-in, API key, and model"
+)]
 
 class TestStripeRAGEEndToEnd:
     """End-to-end tests for the StripeRAGEngine."""
@@ -56,12 +56,8 @@ class TestStripeRAGEEndToEnd:
         test_query = "How to handle webhook events"
         
         # Generate embedding for the test query
-        response = await rag_engine.client.embeddings.create(
-            model="text-embedding-ada-002",
-            input=test_query
-        )
-        query_embedding = np.array(response.data[0].embedding)
-        
+        query_embedding = await rag_engine._get_embedding(test_query)
+
         # Get relevant documents
         relevant_docs = rag_engine._find_relevant_docs(query_embedding, top_k=3)
         

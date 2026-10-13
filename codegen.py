@@ -8,22 +8,27 @@ import logging
 import re
 from typing import Dict, List, Optional, Any
 from pathlib import Path
-from anthropic import AsyncAnthropic
+from llm import create_client, response_text
 from anthropic.types import MessageParam
 
 # Set up logging
 logger = logging.getLogger(__name__)
 
 class StripeCodeGenerator:
-    def __init__(self):
-        api_key = os.getenv("ANTHROPIC_API_KEY")
-        if not api_key:
-            raise ValueError("ANTHROPIC_API_KEY environment variable is not set")
-            
-        self.client = AsyncAnthropic(api_key=api_key)
+    def __init__(self, client=None):
+        self.client = client
         self.templates = self._load_templates()
-        self.model = os.getenv("ANTHROPIC_MODEL", "claude-3-opus-20240229")
-    
+        self.model = os.getenv("ANTHROPIC_MODEL")
+
+    def _get_client(self):
+        if self.client is None:
+            self.client = create_client()
+        return self.client
+
+    def _get_template(self, task, language, framework):
+        key = self._map_task_to_template(task)
+        return self.templates.get(language, {}).get(framework, {}).get(key)
+
     def _load_templates(self) -> Dict[str, Dict]:
         """Load code templates for different frameworks and languages"""
         return {
@@ -198,40 +203,28 @@ app.listen(PORT, () => {
             }
         }
 
-    async def generate_code(self, task: str, language: str = "python", framework: str = "flask", **kwargs) -> str:
-        """Generate code for a specific Stripe integration task
-        
-        Args:
-            task: The Stripe integration task to generate code for
-            language: The programming language to generate code in
-            framework: The framework to use (e.g., 'flask', 'fastapi', 'express')
-            **kwargs: Additional arguments that might be needed for specific patterns
-            
-        Returns:
-            Generated code as a string
-        """
-        try:
-            # Check if we have a template
-            template_key = self._map_task_to_template(task)
-            if template_key and language in self.templates and framework in self.templates[language]:
-                if template_key in self.templates[language][framework]:
-                    base_code = self.templates[language][framework][template_key].strip()
-                    return await self._enhance_template(base_code, task, language, framework)
-            
-            # Generate from scratch using LLM
-            return await self._generate_from_scratch(task, language, framework)
-        except Exception as e:
-            logger.error(f"Error generating code: {e}", exc_info=True)
-            raise Exception(f"Failed to generate code: {e}")
-    
+    async def generate_code(self, task, language="python", framework="flask", **kwargs):
+        if not task.strip():
+            raise ValueError("Task is required")
+        instructions = kwargs.get("instructions")
+        complete_task = f"{task}\nAdditional instructions: {instructions}" if instructions else task
+        template = self._get_template(task, language, framework)
+        if template is not None and not instructions:
+            return template.strip()
+        if template is not None:
+            return await self._generate_from_context(complete_task, template, language, framework)
+        return await self._generate_from_scratch(complete_task, language, framework)
+
     def _map_task_to_template(self, task: str) -> str:
         """Map user task to template key"""
         task_lower = task.lower()
+        if "custom" in task_lower:
+            return None
         
-        if any(word in task_lower for word in ['payment', 'charge', 'pay', 'checkout']):
-            return 'payment_intent'
-        elif any(word in task_lower for word in ['subscription', 'recurring', 'billing']):
+        if any(word in task_lower for word in ['subscription', 'recurring', 'billing']):
             return 'subscription'
+        elif any(word in task_lower for word in ['payment', 'charge', 'pay', 'checkout']):
+            return 'payment_intent'
         elif any(word in task_lower for word in ['customer', 'user']):
             return 'customer'
         elif any(word in task_lower for word in ['webhook', 'event']):
@@ -266,12 +259,12 @@ Instructions:
         
         # Create message parameters
         messages = [
-            {"role": "user", "content": f"Generate code for: {task}"}
+            {"role": "user", "content": f"Generate {language} code using {framework} for: {task}"}
         ]
         
         try:
             # Use the Messages API
-            message = await self.client.messages.create(
+            message = await self._get_client().messages.create(
                 model=self.model,
                 max_tokens=4000,
                 temperature=0.3,
@@ -283,14 +276,13 @@ Instructions:
             if message and hasattr(message, 'content'):
                 response_text = ""
                 for content_block in message.content:
-                    if hasattr(content_block, 'text'):
-                        response_text += content_block.text
+                    response_text += content_block.get('text', '') if isinstance(content_block, dict) else getattr(content_block, 'text', '')
                 
                 # Clean up and extract code
                 generated_code = response_text.strip()
                 return self._extract_code_from_markdown(generated_code) or generated_code
                 
-            return ""  # Return empty string if no code was generated
+            raise ValueError("Provider returned no generated code")
             
         except Exception as e:
             logger.error(f"Error generating code from scratch: {e}")
@@ -319,7 +311,7 @@ Please provide only the code without any additional explanations or markdown for
         
         try:
             # Use the Messages API
-            message = await self.client.messages.create(
+            message = await self._get_client().messages.create(
                 model=self.model,
                 max_tokens=4000,
                 temperature=0.2,  # Slightly lower temperature for more deterministic output with context
@@ -333,18 +325,17 @@ Please provide only the code without any additional explanations or markdown for
             if message and hasattr(message, 'content'):
                 response_text = ""
                 for content_block in message.content:
-                    if hasattr(content_block, 'text'):
-                        response_text += content_block.text
+                    response_text += content_block.get('text', '') if isinstance(content_block, dict) else getattr(content_block, 'text', '')
                 
                 # Clean up and extract code
                 generated_code = response_text.strip()
                 return self._extract_code_from_markdown(generated_code) or generated_code
                 
-            return ""  # Return empty string if no code was generated
+            raise ValueError("Provider returned no generated code")
             
         except Exception as e:
             logger.error(f"Error enhancing template: {e}")
-            return base_code
+            raise
     
     async def _enhance_template(self, base_code: str, task: str, language: str, framework: str) -> str:
         """Enhance a base template based on specific requirements"""
@@ -370,7 +361,7 @@ Please provide only the enhanced code without any additional explanations or mar
         
         try:
             # Use the Messages API
-            message = await self.client.messages.create(
+            message = await self._get_client().messages.create(
                 model=self.model,
                 max_tokens=4000,
                 temperature=0.3,
@@ -384,8 +375,7 @@ Please provide only the enhanced code without any additional explanations or mar
             if message and hasattr(message, 'content'):
                 response_text = ""
                 for content_block in message.content:
-                    if hasattr(content_block, 'text'):
-                        response_text += content_block.text
+                    response_text += content_block.get('text', '') if isinstance(content_block, dict) else getattr(content_block, 'text', '')
                 
                 # Clean up and extract code
                 enhanced_code = response_text.strip()
