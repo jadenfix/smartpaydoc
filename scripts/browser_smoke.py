@@ -37,6 +37,7 @@ def main():
             try:
                 for width, height in [(1280, 900), (390, 844)]:
                     page = browser.new_page(viewport={"width": width, "height": height})
+                    page.route("https://**/*", lambda route: route.abort())
                     page.goto(url)
                     page.locator("#prompt").fill("create a payment intent")
                     page.locator("#generateForm button[type=submit]").click()
