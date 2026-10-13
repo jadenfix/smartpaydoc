@@ -265,3 +265,16 @@ pytest --cov=smartpaydoc tests/
 ## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Verified local workflow
+
+`python -m pytest tests --override-ini addopts='' -q` exercises CLI wiring,
+API routes, input/provider failures, cache persistence and webhook signatures.
+Provider responses in tests are explicitly synthetic fixtures; they do not
+establish live Anthropic availability. Retrieval uses deterministic lexical
+hashing, not random vectors or a learned semantic model. Retrieved documents
+are included in the answer prompt. Cached legacy vectors are regenerated.
+Known code templates remain available when enhancement fails; custom generation
+fails explicitly. API health reports unavailable before initialization.
+A real AI demo requires an authorized Anthropic key and supported model.
+Webhook verification requires --verify --signature plus STRIPE_WEBHOOK_SECRET.

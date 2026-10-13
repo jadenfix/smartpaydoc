@@ -39,24 +39,15 @@ SAMPLE_ERROR_RESPONSE = {
 }
 
 @pytest.fixture
-<<<<<<< HEAD
 def mock_anthropic_client():
-    """Mock Anthropic client for testing"""
-    with patch('anthropic.AsyncAnthropic') as mock_client:
-        mock_client.return_value = AsyncMock()
-        # Mock the messages.create method
-        mock_client.return_value.messages.create.return_value = AsyncMock()
-        # Add a mock response with the expected structure
-        mock_client.return_value.messages.create.return_value.content = [
-            {"type": "text", "text": "Mocked response from Anthropic"}
-        ]
-=======
-def mock_openai_client():
-    """Mock OpenAI client for testing"""
-    with patch('openai.AsyncOpenAI') as mock_client:
-        mock_client.return_value = AsyncMock()
->>>>>>> origin/main
-        yield mock_client.return_value
+    from contextlib import ExitStack
+    from types import SimpleNamespace
+    client = Mock()
+    client.messages.create = AsyncMock(return_value=SimpleNamespace(content=[SimpleNamespace(text="fixture provider answer")]))
+    with ExitStack() as stack:
+        for target in ("anthropic.AsyncAnthropic", "codegen.AsyncAnthropic", "rag_engine.AsyncAnthropic"):
+            stack.enter_context(patch(target, return_value=client))
+        yield client
 
 @pytest.fixture
 def sample_webhook_payload():
@@ -71,15 +62,12 @@ def sample_error_response():
 @pytest.fixture(autouse=True)
 def mock_env_vars(monkeypatch):
     """Set up environment variables for testing"""
-<<<<<<< HEAD
     monkeypatch.setenv("ANTHROPIC_API_KEY", "test_anthropic_key")
     monkeypatch.setenv("ANTHROPIC_MODEL", "claude-3-opus-20240229")
     monkeypatch.setenv("STRIPE_SECRET_KEY", "sk_test_123")
     monkeypatch.setenv("STRIPE_PUBLISHABLE_KEY", "pk_test_123")
     monkeypatch.setenv("STRIPE_WEBHOOK_SECRET", "whsec_test")
     monkeypatch.setenv("CACHE_EMBEDDINGS", "false")
-=======
->>>>>>> origin/main
     # Load from .env.test if it exists
     env_path = os.path.join(os.path.dirname(__file__), '..', '.env.test')
     if os.path.exists(env_path):

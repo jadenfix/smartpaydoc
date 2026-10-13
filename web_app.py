@@ -4,6 +4,7 @@ from fastapi import FastAPI, Request, Depends
 from pydantic import BaseModel
 from typing import Optional, Dict, Any, List
 import logging
+import json
 import os
 import sys
 import asyncio
@@ -92,12 +93,12 @@ class DebugRequest(BaseModel):
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""
-    return {"status": "healthy"}
+    return {"status": "ready" if all((rag, codegen, error_helper)) else "unavailable"}
 
 from fastapi import FastAPI, HTTPException, Request, Depends, Body
 
 @app.post("/api/ask")
-async def ask_question(request_data: dict = Body(...)):
+async def ask_question(request_data: AskRequest):
     """Ask a question about Stripe API"""
     if not rag:
         raise HTTPException(
@@ -106,8 +107,8 @@ async def ask_question(request_data: dict = Body(...)):
         )
     
     try:
-        question = request_data.get('question', '').strip()
-        language = request_data.get('language', 'python')
+        question = request_data.question.strip()
+        language = request_data.language
         
         if not question:
             raise HTTPException(status_code=400, detail="Question is required")
@@ -201,19 +202,13 @@ Need help with something else? Just ask! 😊"""
 @app.post("/api/debug")
 async def debug_error(request: DebugRequest):
     """Debug Stripe errors"""
+    if not error_helper:
+        raise HTTPException(status_code=503, detail="Error helper not initialized")
     try:
-        cmd = ["python", "main.py", "debug", request.error_log]
-        if request.context:
-            cmd.extend(["--context", request.context])
-            
-        result = subprocess.run(cmd, capture_output=True, text=True)
-        
-        if result.returncode != 0:
-            raise HTTPException(status_code=500, detail=result.stderr)
-            
-        return {"analysis": result.stdout}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        return {"analysis": await error_helper.diagnose_error(request.error_log, request.context)}
+    except Exception as exc:
+        logger.exception("Error diagnosis failed")
+        raise HTTPException(status_code=502, detail="Error diagnosis provider failed") from exc
 
 if __name__ == "__main__":
     import uvicorn

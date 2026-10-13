@@ -165,7 +165,8 @@ def debug(
 @app.command()
 def webhook(
     payload: str = typer.Argument(..., help="Webhook payload JSON or file path"),
-    verify: bool = typer.Option(False, "--verify", help="Verify webhook signature")
+    verify: bool = typer.Option(False, "--verify", help="Verify webhook signature"),
+    signature: Optional[str] = typer.Option(None, "--signature", help="Stripe-Signature header for verified events")
 ):
     """Analyze and explain webhook payloads"""
     console.print(Panel.fit("📡 Analyzing webhook...", style="blue"))
@@ -176,7 +177,7 @@ def webhook(
             with open(payload, 'r') as f:
                 payload = f.read()
         
-        analysis = asyncio.run(error_helper.analyze_webhook(payload, verify))
+        analysis = asyncio.run(error_helper.analyze_webhook(payload, verify, signature=signature))
         
         console.print(Panel(
             Markdown(analysis),

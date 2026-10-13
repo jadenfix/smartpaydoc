@@ -4,6 +4,7 @@ Handles document ingestion, embedding, and retrieval
 """
 
 import os
+import hashlib
 import json
 import asyncio
 import sys
@@ -240,46 +241,24 @@ HTTP Status Codes: 200 (OK), 400 (Bad Request), 401 (Unauthorized), 402 (Request
             )
             self.documents.append(doc)
 
+    async def _get_embedding(self, text: str) -> np.ndarray:
+        """Deterministic lexical hashing; this is not a learned semantic model."""
+        vector = np.zeros(1536, dtype=float)
+        for token in re.findall(r"[a-z0-9_]+", text.lower()):
+            index = int.from_bytes(hashlib.sha256(token.encode()).digest()[:8], "big") % len(vector)
+            vector[index] += 1
+        norm = np.linalg.norm(vector)
+        return vector / norm if norm else vector
+
     async def _generate_embeddings(self):
-        """Generate embeddings for all documents using Anthropic"""
-        print("🔍 Generating embeddings...")
-        
-        # Filter out documents that already have embeddings
-        docs_to_embed = [doc for doc in self.documents if doc.embedding is None]
-        
-        if not docs_to_embed:
-            print("✅ All documents already have embeddings")
-            return
-        
-        # Generate embeddings one by one (Anthropic doesn't support batch embeddings)
-        for i, doc in enumerate(docs_to_embed):
-            try:
-                # Use the first 8192 characters as that's the limit for Claude
-                text = doc.content[:8192]
-                
-                # Get embeddings from Anthropic
-                # Note: Anthropic doesn't provide direct embeddings, so we'll use a simple approach
-                # In production, consider using a dedicated embedding model
-                pass
-                
-                # For now, we'll use a simple embedding approach since Anthropic doesn't provide direct embeddings
-                # In a production environment, you might want to use a dedicated embedding model
-                doc.embedding = np.random.rand(1536)  # Using random embeddings as placeholder
-                
-                if (i + 1) % 10 == 0:
-                    print(f"✅ Processed {i + 1}/{len(docs_to_embed)} documents")
-                
-            except Exception as e:
-                print(f"❌ Error generating embedding for document {i}: {e}")
-                # Use a zero vector if embedding fails
-                doc.embedding = np.zeros(1536)
-            except Exception as e:
-                print(f"❌ Failed to generate embedding for {doc.title}: {e}")
+        for doc in self.documents:
+            doc.embedding = await self._get_embedding(doc.title + " " + doc.content)
 
     async def _cache_data(self):
         """Cache documents and embeddings"""
         # Cache embeddings
         embeddings_data = {
+            'method': 'lexical-sha256-v1',
             'embeddings': [doc.embedding for doc in self.documents if doc.embedding is not None],
             'titles': [doc.title for doc in self.documents if doc.embedding is not None]
         }
@@ -317,8 +296,10 @@ HTTP Status Codes: 200 (OK), 400 (Bad Request), 401 (Unauthorized), 402 (Request
                 url=doc_data['url'],
                 category=doc_data['category']
             )
-            if i < len(embeddings_data['embeddings']):
-                doc.embedding = embeddings_data['embeddings'][i]
+            if embeddings_data.get('method') == 'lexical-sha256-v1' and i < len(embeddings_data['embeddings']):
+                doc.embedding = np.asarray(embeddings_data['embeddings'][i])
+            else:
+                doc.embedding = await self._get_embedding(doc.title + ' ' + doc.content)
             self.documents.append(doc)
 
     async def stream_ask(self, question: str, language: str = "python"):
@@ -332,7 +313,7 @@ HTTP Status Codes: 200 (OK), 400 (Bad Request), 401 (Unauthorized), 402 (Request
             
             # Generate embedding for the question
             try:
-                question_embedding = np.random.rand(1536)
+                question_embedding = await self._get_embedding(question)
             except Exception as e:
                 print(f"[ERROR] Failed to generate question embedding: {e}")
                 yield "I encountered an error while processing your question. Please try again."
@@ -409,8 +390,8 @@ HTTP Status Codes: 200 (OK), 400 (Bad Request), 401 (Unauthorized), 402 (Request
         print(f"\n[DEBUG] Starting query for: {question}")
         print(f"[DEBUG] Number of documents: {len(self.documents)}")
         
-        # Generate embedding for the question (using a simple approach since we're using random embeddings)
-        question_embedding = np.random.rand(1536)
+        # Generate deterministic lexical features for retrieval
+        question_embedding = await self._get_embedding(question)
         print(f"[DEBUG] Generated question embedding: {question_embedding[:5]}...")
         
         # Find most relevant documents
@@ -480,7 +461,7 @@ Keep the tone friendly and approachable."""
                 model=self.model,
                 max_tokens=2000,
                 temperature=0.3,
-                system=system_prompt,
+                system=system_prompt + "\n\nDocumentation context:\n" + context,
                 messages=messages
             )
             
@@ -513,7 +494,7 @@ Need help with something else? Just ask! 😊"""
             print(error_msg, file=sys.stderr)
             print(f"[DEBUG] Error details: {type(e).__name__}: {str(e)}", file=sys.stderr)
             traceback.print_exc()
-            return f"I'm sorry, I encountered an error while generating a response: {str(e)}"
+            raise RuntimeError("Answer provider failed") from e
             
     # Alias for backward compatibility
     query = ask

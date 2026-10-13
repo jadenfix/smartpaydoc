@@ -344,7 +344,7 @@ Please provide only the code without any additional explanations or markdown for
             
         except Exception as e:
             logger.error(f"Error enhancing template: {e}")
-            return base_code
+            raise RuntimeError("Context-based code generation failed") from e
     
     async def _enhance_template(self, base_code: str, task: str, language: str, framework: str) -> str:
         """Enhance a base template based on specific requirements"""
