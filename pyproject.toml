@@ -1,7 +1,8 @@
 [project]
 name = "smartpaydoc"
 version = "0.1.0"
-requires-python = ">=3.12,<3.13"
+requires-python = ">=3.11,<3.13"
+dynamic = ["description", "readme", "authors", "classifiers", "scripts"]
 dependencies = [
   "fastapi==0.104.0",
   "starlette==0.27.0",
