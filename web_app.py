@@ -17,6 +17,14 @@ from rag_engine import StripeRAGEngine
 
 logger = logging.getLogger(__name__)
 BASE_DIR = Path(__file__).resolve().parent
+FIXTURE_MODE = "fictional-fixture"
+FIXTURE_PROBE = "malicious rendering probe"
+FIXTURE_ANSWER = """FICTIONAL FIXTURE · provider-free replay
+
+Use PaymentIntent confirmation on the server, return only the client secret to the browser, and verify the resulting webhook signature before fulfillment.
+
+This deterministic answer is bundled for UI testing and demonstration. It is not live Stripe or Anthropic output."""
+FIXTURE_MALICIOUS_ANSWER = '<img src=x onerror="window.__smartpaydocInjected=1"> provider text must remain literal'
 
 
 class AskRequest(BaseModel):
@@ -41,12 +49,17 @@ class WebhookRequest(BaseModel):
     signature: Optional[str] = None
 
 
-def create_app(rag=None, codegen=None, error_helper=None):
+def create_app(rag=None, codegen=None, error_helper=None, mode=None):
+    selected_mode = mode if mode is not None else os.getenv("SMARTPAYDOC_DEMO_MODE", "live")
+    if selected_mode not in {"live", FIXTURE_MODE}:
+        raise ValueError("SMARTPAYDOC_DEMO_MODE must be 'fictional-fixture' when set")
+
     @asynccontextmanager
     async def lifespan(app):
         app.state.rag = rag or StripeRAGEngine()
         app.state.codegen = codegen or StripeCodeGenerator()
         app.state.error_helper = error_helper or StripeErrorHelper()
+        app.state.mode = selected_mode
         await app.state.rag.initialize()
         yield
         seen = set()
@@ -62,12 +75,14 @@ def create_app(rag=None, codegen=None, error_helper=None):
 
     @app.get("/")
     async def home(request: Request):
-        return templates.TemplateResponse("index.html", {"request": request})
+        return templates.TemplateResponse("index.html", {"request": request, "mode": selected_mode})
 
     @app.get("/health")
     async def health():
         return {"status": "healthy", "references": len(app.state.rag.documents),
-                "ai_configured": bool(os.getenv("ANTHROPIC_API_KEY") and os.getenv("ANTHROPIC_MODEL"))}
+                "ai_configured": bool(os.getenv("ANTHROPIC_API_KEY") and os.getenv("ANTHROPIC_MODEL")),
+                "mode": selected_mode,
+                "fixture": selected_mode == FIXTURE_MODE}
 
     async def execute(operation):
         try:
@@ -96,13 +111,17 @@ def create_app(rag=None, codegen=None, error_helper=None):
     @app.post("/api/ask", response_class=PlainTextResponse)
     async def ask(request: Request):
         fields = await parse_request(request, AskRequest)
+        if selected_mode == FIXTURE_MODE:
+            answer = FIXTURE_MALICIOUS_ANSWER if fields.question.casefold() == FIXTURE_PROBE else FIXTURE_ANSWER
+            return PlainTextResponse(answer, headers={"X-SmartPayDoc-Mode": FIXTURE_MODE})
         return await execute(app.state.rag.ask(fields.question, fields.language))
 
     @app.post("/api/generate")
     async def generate(request: Request):
         fields = await parse_request(request, GenerateRequest)
         code = await execute(app.state.codegen.generate_code(fields.task, fields.language, fields.framework))
-        return {"code": code}
+        return {"code": code, "mode": selected_mode,
+                "fixture": selected_mode == FIXTURE_MODE}
 
     @app.post("/api/debug")
     async def debug(request: DebugRequest):

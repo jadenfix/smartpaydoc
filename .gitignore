@@ -2,6 +2,8 @@
 __pycache__/
 *.py[cod]
 *$py.class
+# Legacy generated embedding caches are not runtime inputs and must never be unpickled.
+stripe_embeddings.pkl
 *.so
 .Python
 build/

@@ -29,6 +29,16 @@ uvicorn web_app:app --host 127.0.0.1 --port 8000
 
 Open `http://127.0.0.1:8000`. The compatibility entrypoint `web.main:app` uses the same tested application. CLI failures exit nonzero. Starter code is reference material to adapt and test; generation does not establish production readiness.
 
+### Provider-free fictional fixture
+
+The browser workflow has one explicit deterministic demo mode:
+
+```sh
+SMARTPAYDOC_DEMO_MODE=fictional-fixture uvicorn web_app:app --host 127.0.0.1 --port 8000
+```
+
+The API and UI label this mode as **FICTIONAL FIXTURE · PROVIDER-FREE**. It uses a bundled immutable answer for browser testing and demonstrations; it does not contact Anthropic or Stripe, process payments, or measure provider quality. With the variable absent, the application remains in live mode and AI-backed endpoints fail closed when credentials are missing.
+
 ## API contracts
 
 - `GET /health`: readiness, reference count, provider configuration status.
@@ -60,3 +70,11 @@ python -m pytest tests -q --no-cov
 The default suite makes no paid requests. It covers deterministic retrieval/cache reload, CLI entrypoints, browser request contracts, grounded requests using an injected provider, failure propagation, valid/tampered/stale signatures, and missing credentials. Live-provider tests require explicit `SMARTPAYDOC_RUN_LIVE_TESTS=1` plus configured credentials and are skipped by default.
 
 Real browser validation is separate from API-contract testing. CI installs Chromium and runs `scripts/browser_smoke.py` on desktop and mobile viewports. A passing browser job is required before a UI recording is released.
+
+## Verified demo
+
+The checked-in GIF and MP4 replay the actual FastAPI browser workflow in the visibly labeled fictional-fixture mode. `scripts/verify_demo.py` checks the captured source identity and blobs, artifact hashes, dimensions, frame counts, and full media decoding.
+
+![SmartPayDoc fictional-fixture browser workflow](docs/demo/smartpaydoc-fixture-demo.gif)
+
+[MP4 demo](docs/demo/smartpaydoc-fixture-demo.mp4) · [poster](docs/demo/smartpaydoc-fixture-demo-poster.png)

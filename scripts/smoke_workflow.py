@@ -17,7 +17,7 @@ import uvicorn
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from rag_engine import StripeRAGEngine
-from web_app import create_app
+from web_app import FIXTURE_MODE, create_app
 
 
 class FixtureClient:
@@ -41,7 +41,9 @@ def main():
         provider = FixtureClient()
         rag = StripeRAGEngine(client=provider)
         rag.docs_cache = str(Path(directory) / "references.json")
-        server = uvicorn.Server(uvicorn.Config(create_app(rag=rag), host="127.0.0.1", port=port, log_level="warning"))
+        server = uvicorn.Server(uvicorn.Config(
+            create_app(rag=rag, mode=FIXTURE_MODE), host="127.0.0.1", port=port, log_level="warning"
+        ))
         thread = threading.Thread(target=server.run, daemon=True)
         thread.start()
         url = f"http://127.0.0.1:{port}"
@@ -52,15 +54,17 @@ def main():
             if not server.started:
                 raise RuntimeError("Server did not become ready")
             assert requests.get(url, timeout=5).status_code == 200
-            assert requests.get(url + "/health", timeout=5).json()["references"] > 0
+            health = requests.get(url + "/health", timeout=5).json()
+            assert health["references"] > 0
+            assert health["mode"] == FIXTURE_MODE and health["fixture"] is True
             generated = requests.post(url + "/api/generate", data={"prompt": "create a payment intent", "language": "python", "framework": "flask"}, timeout=5)
             generated.raise_for_status()
             assert "stripe.PaymentIntent.create" in generated.json()["code"]
             answer = requests.post(url + "/api/ask", json={"question": "How do I create a PaymentIntent?"}, timeout=5)
             answer.raise_for_status()
-            assert "FIXTURE RESPONSE" in answer.text
-            assert "Payment Intents" in provider.last_request["system"]
-            assert "https://stripe.com/docs/api/payment_intents" in provider.last_request["system"]
+            assert "FICTIONAL FIXTURE" in answer.text
+            assert answer.headers["X-SmartPayDoc-Mode"] == FIXTURE_MODE
+            assert provider.last_request is None
             diagnosed = requests.post(url + "/api/debug", json={"error_log": "card_declined"}, timeout=5)
             diagnosed.raise_for_status()
             assert "card_declined" in diagnosed.json()["analysis"]
@@ -70,8 +74,8 @@ def main():
             assert "unverified" in inspected.json()["analysis"]
             rejected = requests.post(url + "/api/webhook", json={"payload": payload, "verify": True}, timeout=5)
             assert rejected.status_code == 400
-            print("PASS: actual HTTP UI → form generation → grounded request → error diagnosis → webhook inspection → reject missing signature")
-            print("Provider response is a controlled fixture. No live provider or Stripe request was made.")
+            print("PASS: actual HTTP UI → form generation → labeled fixture answer → error diagnosis → webhook inspection → reject missing signature")
+            print("The response is an immutable fictional fixture. No live provider or Stripe request was made.")
         finally:
             server.should_exit = True
             thread.join(timeout=10)

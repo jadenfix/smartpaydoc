@@ -3,6 +3,7 @@ import hashlib
 import hmac
 import json
 import time
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
@@ -15,7 +16,7 @@ from codegen import StripeCodeGenerator
 from error_helper import StripeErrorHelper
 from main import app as cli
 from rag_engine import StripeDocument, StripeRAGEngine
-from web_app import create_app
+from web_app import FIXTURE_MALICIOUS_ANSWER, FIXTURE_MODE, create_app
 
 
 @pytest.mark.asyncio
@@ -109,3 +110,42 @@ def test_browser_api_contracts_and_provider_errors(tmp_path, monkeypatch):
         client_failure.messages.create.side_effect = RuntimeError("controlled failure")
         rag.client = client_failure
         assert client.post("/api/ask", json={"question": "payment intent"}).status_code == 502
+
+
+def test_fixture_mode_is_explicit_deterministic_and_provider_free(tmp_path, monkeypatch):
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.delenv("ANTHROPIC_MODEL", raising=False)
+    rag = StripeRAGEngine()
+    rag.docs_cache = str(tmp_path / "docs.json")
+    with TestClient(create_app(rag=rag, mode=FIXTURE_MODE)) as client:
+        health = client.get("/health").json()
+        assert health["mode"] == FIXTURE_MODE
+        assert health["fixture"] is True
+        assert health["ai_configured"] is False
+
+        first = client.post("/api/ask", json={"question": "How should I confirm a PaymentIntent?"})
+        second = client.post("/api/ask", json={"question": "How should I confirm a PaymentIntent?"})
+        assert first.status_code == second.status_code == 200
+        assert first.text == second.text
+        assert "FICTIONAL FIXTURE" in first.text
+        assert first.headers["x-smartpaydoc-mode"] == FIXTURE_MODE
+
+        malicious = client.post("/api/ask", json={"question": "malicious rendering probe"})
+        assert malicious.text == FIXTURE_MALICIOUS_ANSWER
+
+        generated = client.post("/api/generate", json={
+            "task": "create a payment intent", "language": "python", "framework": "flask"
+        })
+        assert generated.status_code == 200
+        assert generated.json()["mode"] == FIXTURE_MODE
+        assert generated.json()["fixture"] is True
+        assert "stripe.PaymentIntent.create" in generated.json()["code"]
+
+
+def test_browser_renderer_has_no_untrusted_html_sink():
+    script = (Path(__file__).parents[2] / "web/static/script.js").read_text()
+    template = (Path(__file__).parents[2] / "web/templates/index.html").read_text()
+    assert "innerHTML" not in script
+    assert "outerHTML" not in script
+    assert "<script>" not in template
+    assert 'src="/static/script.js"' in template
