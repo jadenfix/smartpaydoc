@@ -1,281 +1,164 @@
-// DOM Elements
-const askForm = document.getElementById('askForm');
-const generateForm = document.getElementById('generateForm');
-const askResult = document.getElementById('askResult');
-const codeOutput = document.getElementById('codeOutput');
+"use strict";
 
-// Initialize clipboard.js for code copy functionality
-new ClipboardJS('.copy-btn');
+const state = { mode: "unknown", fixture: false };
 
-// Handle ask form submission with streaming
-if (askForm) {
-    askForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        
-        const question = document.getElementById('question').value.trim();
-        if (!question) return;
-        
-        const submitBtn = askForm.querySelector('button[type="submit"]');
-        const btnText = submitBtn.querySelector('.btn-text');
-        const spinner = submitBtn.querySelector('.loading-spinner');
-        
-        // Show loading state
-        btnText.textContent = 'Asking...';
-        spinner.style.display = 'inline-block';
-        submitBtn.disabled = true;
-        
-        // Clear previous results/errors
-        askResult.innerHTML = '';
-        askResult.style.display = 'block';
-        const errorElement = document.getElementById('askError');
-        if (errorElement) errorElement.remove();
-        
-        // Create a new paragraph for the response
-        const responseParagraph = document.createElement('div');
-        responseParagraph.className = 'prose max-w-none';
-        askResult.appendChild(responseParagraph);
-        
-        let response;
-        try {
-            response = await fetch('/api/ask', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                },
-                body: new URLSearchParams({ question })
-            });
+function clear(node) {
+    node.replaceChildren();
+}
 
-            // Handle non-200 responses
-            if (!response.ok) {
-                let errorMessage = `Error: ${response.status}`;
-                try {
-                    const errorData = await response.json();
-                    errorMessage = errorData.error || errorMessage;
-                } catch (e) {
-                    // If we can't parse JSON, try to get text
-                    const text = await response.text();
-                    errorMessage = text || errorMessage;
-                }
-                throw new Error(errorMessage);
-            }
+function setBusy(form, busy, activeLabel, idleLabel) {
+    const button = form.querySelector('button[type="submit"]');
+    button.disabled = busy;
+    button.querySelector(".btn-text").textContent = busy ? activeLabel : idleLabel;
+    button.querySelector(".loading-spinner").hidden = !busy;
+}
 
-            // Check if this is a streaming response
-            const contentType = response.headers.get('content-type') || '';
-            if (contentType.includes('text/event-stream')) {
-                // Handle streaming response
-                if (!response.body) {
-                    throw new Error('No response body received');
-                }
+function addIcon(target, kind) {
+    const icon = document.createElement("span");
+    icon.className = `message-icon message-icon-${kind}`;
+    icon.setAttribute("aria-hidden", "true");
+    icon.textContent = kind === "error" ? "!" : "✓";
+    target.appendChild(icon);
+}
 
-                const reader = response.body.getReader();
-                const decoder = new TextDecoder();
-                let buffer = '';
-                
-                while (true) {
-                    const { done, value } = await reader.read();
-                    if (done) break;
-                    
-                    // Decode the chunk and process it
-                    buffer += decoder.decode(value, { stream: true });
-                    
-                    // Process each complete event
-                    const events = buffer.split('\n\n');
-                    buffer = events.pop() || ''; // Save incomplete event for next iteration
-                    
-                    for (const event of events) {
-                        try {
-                            if (!event.startsWith('data: ')) continue;
-                            
-                            const data = JSON.parse(event.slice(6).trim()); // Remove 'data: ' prefix and trim
-                            
-                            if (data && typeof data === 'object') {
-                                if (data.error) {
-                                    throw new Error(data.error);
-                                }
-                                if (data.response) {
-                                    // Sanitize and append the new text to the response
-                                    const sanitized = data.response
-                                        .replace(/&/g, '&amp;')
-                                        .replace(/</g, '&lt;')
-                                        .replace(/>/g, '&gt;');
-                                    
-                                    // Only update the DOM if we have actual content
-                                    if (sanitized.trim()) {
-                                        responseParagraph.innerHTML += sanitized;
-                                        // Scroll to the bottom
-                                        responseParagraph.scrollIntoView({ behavior: 'smooth', block: 'end' });
-                                    }
-                                }
-                            }
-                        } catch (e) {
-                            console.error('Error processing event:', e);
-                            // Don't throw here, continue processing other events
-                        }
-                    }
-                }
-            } else {
-                // Handle non-streaming response (e.g., error responses)
-                const data = await response.json();
-                if (data.error) {
-                    throw new Error(data.error);
-                }
-                if (data.response) {
-                    responseParagraph.innerHTML = data.response;
-                }
-            }
-            
-            // Apply syntax highlighting to any code blocks
-            document.querySelectorAll('pre code').forEach((block) => {
-                hljs.highlightBlock(block);
-            });
-            
-        } catch (error) {
-            console.error('Error:', error);
-            showError(askForm, error.message || 'Failed to get a response. Please try again.');
-        } finally {
-            // Reset button state
-            btnText.textContent = 'Ask Question';
-            spinner.style.display = 'none';
-            submitBtn.disabled = false;
-        }
+function showError(anchor, message) {
+    document.getElementById(`${anchor.id}Error`)?.remove();
+    const error = document.createElement("div");
+    error.id = `${anchor.id}Error`;
+    error.className = "error-message";
+    error.setAttribute("role", "alert");
+    addIcon(error, "error");
+    const text = document.createElement("span");
+    text.className = "error-text";
+    text.textContent = String(message);
+    error.appendChild(text);
+    anchor.insertAdjacentElement("afterend", error);
+}
+
+function setMode(mode, fixture) {
+    state.mode = mode;
+    state.fixture = fixture;
+    const badge = document.getElementById("modeBadge");
+    badge.dataset.mode = mode;
+    document.getElementById("modeLabel").textContent = fixture
+        ? "FICTIONAL FIXTURE · PROVIDER-FREE"
+        : "LIVE MODE · PROVIDER REQUIRED";
+    document.getElementById("fixtureNotice").hidden = !fixture;
+    document.querySelectorAll(".result-mode").forEach((node) => {
+        node.textContent = fixture ? "fictional fixture" : "live provider";
     });
 }
 
-// Handle generate form submission
-if (generateForm) {
-    generateForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        
-        const prompt = document.getElementById('prompt').value.trim();
-        const language = document.getElementById('language').value;
-        const framework = document.getElementById('framework').value;
-        
-        if (!prompt) return;
-        
-        const submitBtn = generateForm.querySelector('button[type="submit"]');
-        const btnText = submitBtn.querySelector('.btn-text');
-        const spinner = submitBtn.querySelector('.loading-spinner');
-        
-        // Show loading state
-        btnText.textContent = 'Generating...';
-        spinner.style.display = 'inline-block';
-        submitBtn.disabled = true;
-        
-        // Clear previous results/errors
-        const generateResult = document.getElementById('generateResult');
-        generateResult.style.display = 'none';
-        const errorElement = document.getElementById('generateError');
-        if (errorElement) errorElement.remove();
-        
+function renderAnswer(target, value) {
+    clear(target);
+    const text = document.createElement("p");
+    text.className = "answer-text";
+    text.textContent = String(value);
+    target.appendChild(text);
+}
+
+function createCodeBlock(code, language) {
+    const wrapper = document.createElement("div");
+    wrapper.className = "code-block";
+    const header = document.createElement("div");
+    header.className = "code-header";
+    const label = document.createElement("span");
+    label.className = "code-language";
+    label.textContent = language || "code";
+    const copy = document.createElement("button");
+    copy.className = "copy-btn";
+    copy.type = "button";
+    copy.textContent = "Copy";
+    copy.addEventListener("click", async () => {
+        await navigator.clipboard.writeText(String(code));
+        copy.textContent = "Copied";
+        window.setTimeout(() => { copy.textContent = "Copy"; }, 1200);
+    });
+    header.append(label, copy);
+    const pre = document.createElement("pre");
+    const codeNode = document.createElement("code");
+    codeNode.textContent = String(code);
+    pre.appendChild(codeNode);
+    wrapper.append(header, pre);
+    return wrapper;
+}
+
+async function errorFrom(response) {
+    const contentType = response.headers.get("content-type") || "";
+    if (contentType.includes("application/json")) {
+        const data = await response.json();
+        return data.detail || data.error || `Request failed (${response.status})`;
+    }
+    return (await response.text()) || `Request failed (${response.status})`;
+}
+
+async function initializeMode() {
+    try {
+        const response = await fetch("/health", { headers: { Accept: "application/json" } });
+        if (!response.ok) throw new Error(`Health check failed (${response.status})`);
+        const data = await response.json();
+        setMode(data.mode, Boolean(data.fixture));
+    } catch (error) {
+        setMode("unknown", false);
+        showError(document.getElementById("modeBadge"), error.message);
+    }
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+    initializeMode();
+    const askForm = document.getElementById("askForm");
+    const answer = document.getElementById("answer");
+    const answerContent = document.getElementById("answerContent");
+    askForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        if (askForm.nextElementSibling?.id === "askFormError") askForm.nextElementSibling.remove();
+        setBusy(askForm, true, "Retrieving…", "Ask question");
         try {
-            const response = await fetch('/api/generate', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                },
-                body: new URLSearchParams({ 
-                    prompt,
-                    language,
-                    framework 
+            const response = await fetch("/api/ask", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", Accept: "text/plain" },
+                body: JSON.stringify({ question: document.getElementById("question").value, language: "python" })
+            });
+            if (!response.ok) throw new Error(await errorFrom(response));
+            renderAnswer(answerContent, await response.text());
+            answer.hidden = false;
+            answer.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        } catch (error) {
+            answer.hidden = true;
+            showError(askForm, error.message || "Unable to retrieve guidance");
+        } finally {
+            setBusy(askForm, false, "Retrieving…", "Ask question");
+        }
+    });
+
+    const generateForm = document.getElementById("generateForm");
+    const generateResult = document.getElementById("generateResult");
+    const codeOutput = document.getElementById("codeOutput");
+    generateForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        if (generateForm.nextElementSibling?.id === "generateFormError") generateForm.nextElementSibling.remove();
+        setBusy(generateForm, true, "Generating…", "Generate code");
+        try {
+            const response = await fetch("/api/generate", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", Accept: "application/json" },
+                body: JSON.stringify({
+                    task: document.getElementById("prompt").value,
+                    language: document.getElementById("language").value,
+                    framework: document.getElementById("framework").value
                 })
             });
-            
-            if (!response.ok) {
-                throw new Error(`Error: ${response.status}`);
-            }
-            
+            if (!response.ok) throw new Error(await errorFrom(response));
             const data = await response.json();
-            
-            // Display the generated code
-            const codeBlock = createCodeBlock(data.code, language);
-            codeOutput.innerHTML = '';
-            codeOutput.appendChild(codeBlock);
-            generateResult.style.display = 'block';
-            
-            // Scroll to the result
-            generateResult.scrollIntoView({ behavior: 'smooth' });
-            
+            clear(codeOutput);
+            codeOutput.appendChild(createCodeBlock(data.code, document.getElementById("language").value));
+            generateResult.hidden = false;
+            generateResult.scrollIntoView({ behavior: "smooth", block: "nearest" });
         } catch (error) {
-            console.error('Error:', error);
-            showError(generateForm, 'Failed to generate code. Please try again.');
+            generateResult.hidden = true;
+            showError(generateForm, error.message || "Unable to generate code");
         } finally {
-            // Reset button state
-            btnText.textContent = 'Generate Code';
-            spinner.style.display = 'none';
-            submitBtn.disabled = false;
+            setBusy(generateForm, false, "Generating…", "Generate code");
         }
     });
-}
-
-// Helper function to create a code block with copy button
-function createCodeBlock(code, language) {
-    const container = document.createElement('div');
-    container.className = 'code-block';
-    
-    const header = document.createElement('div');
-    header.className = 'code-header';
-    
-    const langSpan = document.createElement('span');
-    langSpan.className = 'code-language';
-    langSpan.textContent = language || 'code';
-    
-    const copyBtn = document.createElement('button');
-    copyBtn.className = 'copy-btn';
-    copyBtn.setAttribute('data-clipboard-text', code);
-    copyBtn.innerHTML = `
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
-        </svg>
-        Copy
-    `;
-    
-    header.appendChild(langSpan);
-    header.appendChild(copyBtn);
-    
-    const pre = document.createElement('pre');
-    const codeElement = document.createElement('code');
-    codeElement.className = language ? `language-${language}` : '';
-    codeElement.textContent = code;
-    
-    pre.appendChild(codeElement);
-    container.appendChild(header);
-    container.appendChild(pre);
-    
-    // Apply syntax highlighting
-    hljs.highlightBlock(codeElement);
-    
-    // Add copy feedback
-    copyBtn.addEventListener('click', () => {
-        const originalText = copyBtn.innerHTML;
-        copyBtn.innerHTML = `
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-            </svg>
-            Copied!
-        `;
-        setTimeout(() => {
-            copyBtn.innerHTML = originalText;
-        }, 2000);
-    });
-    
-    return container;
-}
-
-// Helper function to show error messages
-function showError(formElement, message) {
-    const errorDiv = document.createElement('div');
-    errorDiv.id = `${formElement.id}Error`;
-    errorDiv.className = 'error-message';
-    errorDiv.innerHTML = `
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-        <span class="error-text">${message}</span>
-    `;
-    
-    formElement.parentNode.insertBefore(errorDiv, formElement.nextSibling);
-    errorDiv.scrollIntoView({ behavior: 'smooth' });
-}
-
-// Initialize clipboard.js
-new ClipboardJS('.copy-btn');
+});

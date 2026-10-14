@@ -1,4 +1,4 @@
-"""Real browser check of the offline starter-template workflow; no paid API calls."""
+"""Real-browser checks for explicit fixture mode and DOM-safe provider rendering."""
 import os
 import socket
 import subprocess
@@ -17,8 +17,11 @@ def main():
     environment = dict(os.environ)
     environment.pop("ANTHROPIC_API_KEY", None)
     environment.pop("ANTHROPIC_MODEL", None)
-    process = subprocess.Popen([sys.executable, "-m", "uvicorn", "web_app:app", "--host", "127.0.0.1", "--port", str(port)],
-                               cwd=Path(__file__).resolve().parents[1], env=environment)
+    environment["SMARTPAYDOC_DEMO_MODE"] = "fictional-fixture"
+    process = subprocess.Popen(
+        [sys.executable, "-m", "uvicorn", "web_app:app", "--host", "127.0.0.1", "--port", str(port)],
+        cwd=Path(__file__).resolve().parents[1], env=environment,
+    )
     url = f"http://127.0.0.1:{port}"
     try:
         for _ in range(100):
@@ -32,23 +35,64 @@ def main():
                 time.sleep(.1)
         else:
             raise RuntimeError("Server did not become ready")
+
         with sync_playwright() as playwright:
-            browser = playwright.chromium.launch()
+            executable = os.getenv("PLAYWRIGHT_CHROMIUM_EXECUTABLE")
+            browser = playwright.chromium.launch(executable_path=executable) if executable else playwright.chromium.launch()
             try:
                 for width, height in [(1280, 900), (390, 844)]:
                     page = browser.new_page(viewport={"width": width, "height": height})
-                    page.route("https://**/*", lambda route: route.abort())
                     page.goto(url)
+                    page.wait_for_function(
+                        "document.getElementById('modeLabel').textContent.includes('FICTIONAL FIXTURE')"
+                    )
+                    assert page.locator("#fixtureNotice").is_visible()
+                    overflow = page.evaluate("""() => ({
+                        document: [document.documentElement.scrollWidth, window.innerWidth],
+                        offenders: [...document.querySelectorAll('body *')]
+                            .filter((element) => element.getBoundingClientRect().right > window.innerWidth + 1)
+                            .slice(0, 5)
+                            .map((element) => [element.tagName, element.id, element.className,
+                                Math.round(element.getBoundingClientRect().right)]),
+                        internal: [...document.querySelectorAll('body *')]
+                            .filter((element) => element.scrollWidth > element.clientWidth + 1)
+                            .slice(0, 8)
+                            .map((element) => [element.tagName, element.id, element.className,
+                                element.scrollWidth, element.clientWidth])
+                    })""")
+                    assert overflow["document"][0] <= overflow["document"][1], overflow
+
                     page.locator("#prompt").fill("create a payment intent")
                     page.locator("#generateForm button[type=submit]").click()
-                    page.wait_for_function("document.getElementById('codeOutput').textContent.includes('stripe.PaymentIntent.create')")
+                    page.wait_for_function(
+                        "document.getElementById('codeOutput').textContent.includes('stripe.PaymentIntent.create')"
+                    )
                     assert page.locator("#generateResult").is_visible()
-                    assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth")
-                    page.locator("#question").fill("How do payments work?")
+
+                    page.locator("#question").fill("malicious rendering probe")
                     page.locator("#askForm button[type=submit]").click()
-                    page.wait_for_function("document.body.textContent.includes('ANTHROPIC_API_KEY')")
+                    page.wait_for_function(
+                        "document.getElementById('answerContent').textContent.includes('window.__smartpaydocInjected=1')"
+                    )
+                    assert page.locator("#answerContent img").count() == 0
+                    assert page.evaluate("window.__smartpaydocInjected === undefined")
+                    assert page.locator("#answerContent").text_content().startswith("<img src=x")
+                    overflow = page.evaluate("""() => ({
+                        document: [document.documentElement.scrollWidth, window.innerWidth],
+                        offenders: [...document.querySelectorAll('body *')]
+                            .filter((element) => element.getBoundingClientRect().right > window.innerWidth + 1)
+                            .slice(0, 5)
+                            .map((element) => [element.tagName, element.id, element.className,
+                                Math.round(element.getBoundingClientRect().right)]),
+                        internal: [...document.querySelectorAll('body *')]
+                            .filter((element) => element.scrollWidth > element.clientWidth + 1)
+                            .slice(0, 8)
+                            .map((element) => [element.tagName, element.id, element.className,
+                                element.scrollWidth, element.clientWidth])
+                    })""")
+                    assert overflow["document"][0] <= overflow["document"][1], overflow
                     page.close()
-                    print(f"PASS: {width}px template generation and missing-provider error")
+                    print(f"PASS: {width}px fixture workflow and literal malicious-provider rendering")
             finally:
                 browser.close()
     finally:
