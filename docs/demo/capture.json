@@ -1,0 +1,21 @@
+{
+  "command": "python scripts/capture_demo.py",
+  "media": {
+    "smartpaydoc-fixture-demo-poster.png": {
+      "bytes": 97412,
+      "sha256": "8fc05e58c8950ebef8eca9bf090d68ce26fdc1dbf123d02c784f816fcb853127"
+    },
+    "smartpaydoc-fixture-demo.gif": {
+      "bytes": 356901,
+      "sha256": "bf36a3600300ec1c95e94b15ec2dcb294e7c6035ee68f153eb8982ef2daf62e1"
+    },
+    "smartpaydoc-fixture-demo.mp4": {
+      "bytes": 283843,
+      "sha256": "540d22fd952e2de5f3d75c31b15cc0108ccbeee433e477ed3048f256ccac77f3"
+    }
+  },
+  "schema": 1,
+  "scope": "Actual local FastAPI + Chromium workflow in explicit deterministic fictional-fixture mode; no live Stripe/Anthropic calls or performance claims.",
+  "source_commit": "831eb7b46cdb935f404621a13501821e6bfca9ee",
+  "source_tree": "007579854379b44c014c227b7a0331d085d69044"
+}

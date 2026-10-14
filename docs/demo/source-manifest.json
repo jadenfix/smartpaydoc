@@ -1,0 +1,86 @@
+{
+  "inputs": {
+    ".github/workflows/ci.yml": {
+      "git_blob": "3d510631f8f00c27175d64d0ff4dca42fd9211da",
+      "sha256": "aa9802469ad940815d20c69fd5494138a00090add02858c54ac1f0c5f72c56c9"
+    },
+    ".python-version": {
+      "git_blob": "e4fba2183587225f216eeada4c78dfab6b2e65f5",
+      "sha256": "7b55f8e67b5623c4bef3fa691288da9437d79d3aba156de48d481db32ac7d16d"
+    },
+    "README.md": {
+      "git_blob": "a813ad2f643ceeca12c9f66a4f1d34f0511f7402",
+      "sha256": "9f7af41dda4a5d81c588149e8de4569879269c7721cd27e89fe98d30cda5b407"
+    },
+    "codegen.py": {
+      "git_blob": "a79140aeea6bf2337f206eb74d8cb14952bacddf",
+      "sha256": "deb73550ce638f341bc9c6e09ed7b664d115f5ea87fef21d4b7492e0e2015323"
+    },
+    "error_helper.py": {
+      "git_blob": "b09af8ad3acca2d057c12854d2852153a7bf0c6b",
+      "sha256": "7574de3fa52fac709561a362eeef204146289d1adf15601042e4dc581ed219e2"
+    },
+    "llm.py": {
+      "git_blob": "ec15b041d1984df909773a351be933275cc6a152",
+      "sha256": "a97552c3289d31e004199b2b665591073527ae70a34922495b31f772cdf66ef9"
+    },
+    "pyproject.toml": {
+      "git_blob": "a67a735fbc6d0025f4ae560d44ef2636d6240754",
+      "sha256": "11181aa804801042f121f4ae30c235c7cb5b140670b923c3f9d42ad825d2f3e6"
+    },
+    "rag_engine.py": {
+      "git_blob": "539e27033e993f0871eb99593ec4115ae8306599",
+      "sha256": "f6eab5c43cc216ea83f48b378a996d15016b5322398635d50e0dbf8ef7fd042b"
+    },
+    "requirements-dev.txt": {
+      "git_blob": "c19623bd0b0d82ff06d85f616097edbe4b8ca151",
+      "sha256": "f73a95c6b903b7c421579b9ae1efef1a98ace2cde56458ee18582c4a562c0d28"
+    },
+    "requirements.txt": {
+      "git_blob": "aae2cf8f62744024109f1c354328c7105b807cbf",
+      "sha256": "e2f05a79fdc7777c0c853f8bc4a971a1277c84fe0a04e46aabf6c822c5921431"
+    },
+    "scripts/browser_smoke.py": {
+      "git_blob": "86e3cadb0203e8edc3bdce9b4d96b7abbe075213",
+      "sha256": "930c6b5d92be17c5a20ff7419752e72e7f50b79d58af81621a85a107788995cd"
+    },
+    "scripts/capture_demo.py": {
+      "git_blob": "025490585a9a4c4ddbc61a61d2adaacabd1015fb",
+      "sha256": "319d379437a18c14248fb3946f11ac2f1ed7df6e0db1e13a3ac8d3cf46623158"
+    },
+    "scripts/smoke_workflow.py": {
+      "git_blob": "dfec2ea952830a002db36a5d7de3f77a73542131",
+      "sha256": "2608bcd5999e885fa31c49a5d3baf520bde5bcdbfcac56aa224e7210f10e475f"
+    },
+    "scripts/verify_demo.py": {
+      "git_blob": "ab3e3439f37f1f529015550a2a89b2140f97e23e",
+      "sha256": "3e299f466b1bd07310a8140c5af759cad93d4d87d9826d484c38f0e5b33652e8"
+    },
+    "stripe_docs.json": {
+      "git_blob": "785e29af3a740cb7bad6af5709691d5c74a52272",
+      "sha256": "8ba6930e7c025e2a7f4d8dbcd4e9bc670a73d0de26531fcef21bb6583183c013"
+    },
+    "tests/integration/test_grounded_workflow.py": {
+      "git_blob": "62dc5f0fc52e67b7454a0c8eba3f1e37bd4e3554",
+      "sha256": "229f25b9b78451994eb00e60c6dcd10a77239646fb62beec2da68461176b74a0"
+    },
+    "web/static/script.js": {
+      "git_blob": "11c812d3917b5aa020a45f27caee98276aaa1ba3",
+      "sha256": "78fc944dbaf9c5736d2354213086b24b119359ee1c15621edc393a721180ae01"
+    },
+    "web/static/styles.css": {
+      "git_blob": "4a6e717b14b1199760b27d15c3f20c1bb29f9d9b",
+      "sha256": "f43e14f5864525d51fd2dcf2c1c165d4587895a8548b91bdb51c129948c2a2d1"
+    },
+    "web/templates/index.html": {
+      "git_blob": "4fd76ee691aadc5ba30d0d619d1caa0099a1ddcd",
+      "sha256": "fbb6323ae17791a91462f75ecbcd4ce9e3cb02fac919591cae9c5cdb843dfb54"
+    },
+    "web_app.py": {
+      "git_blob": "55032e5e718e8b0f0d37fd3fefc62684206b4450",
+      "sha256": "85a52c56637f7ee3fd4568ebacf646626d878190cdb2713ecdda5395f14a0342"
+    }
+  },
+  "source_commit": "831eb7b46cdb935f404621a13501821e6bfca9ee",
+  "source_tree": "007579854379b44c014c227b7a0331d085d69044"
+}
